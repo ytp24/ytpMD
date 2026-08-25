@@ -15,7 +15,7 @@ import (
 	"github.com/devops/pdf2md/pkg/validator"
 )
 
-const version = "2.1.0"
+const version = "2.2.0"
 
 func printUsage() {
 	ui.PrintBanner(version)
@@ -36,7 +36,7 @@ func printUsage() {
    -r, -recursive                  Recursively search subdirectories in batch mode
 
 %s%sEXAMPLES:%s
-   # Interactive mode (asks questions with smart defaults):
+   # Interactive mode (prompts with smart defaults):
    pdf2md
 
    # Direct conversion into a named chapter folder:
@@ -44,14 +44,14 @@ func printUsage() {
 
    # Batch process an entire directory:
    pdf2md batch ~/Downloads/PDFs/ -o ~/Projects/Notes/ -r
-`, ui.Bold, ui.MintLight, ui.Reset,
-		ui.GreenLight, ui.Reset,
-		ui.GreenLight, ui.Reset,
-		ui.GreenLight, ui.Reset,
-		ui.GreenLight, ui.Reset,
-		ui.GreenLight, ui.Reset,
-		ui.Bold, ui.MintLight, ui.Reset,
-		ui.Bold, ui.MintLight, ui.Reset,
+`, ui.Bold, ui.TealLight, ui.Reset,
+		ui.TealBright, ui.Reset,
+		ui.TealBright, ui.Reset,
+		ui.TealBright, ui.Reset,
+		ui.TealBright, ui.Reset,
+		ui.TealBright, ui.Reset,
+		ui.Bold, ui.TealLight, ui.Reset,
+		ui.Bold, ui.TealLight, ui.Reset,
 	)
 }
 
@@ -60,7 +60,7 @@ func main() {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println()
-			fmt.Printf("%s❌ An unexpected internal error occurred:%s %v\n", ui.ColorRed, ui.Reset, r)
+			fmt.Printf("%s[x] An unexpected internal error occurred:%s %v\n", ui.ColorRed, ui.Reset, r)
 			fmt.Printf("Please ensure the PDF file is valid and poppler-utils is installed.\n")
 			os.Exit(1)
 		}
@@ -72,13 +72,13 @@ func main() {
 	go func() {
 		<-sigChan
 		fmt.Println()
-		fmt.Printf("\n%s⚠️  Operation cancelled by user. Exiting cleanly.%s\n", ui.ColorYellow, ui.Reset)
+		fmt.Printf("\n%s[!] Operation cancelled by user. Exiting cleanly.%s\n", ui.ColorYellow, ui.Reset)
 		os.Exit(0)
 	}()
 
 	// Pre-flight check: Dependencies
 	if err := validator.CheckDependencies(); err != nil {
-		fmt.Printf("%s❌ Dependency Error:%s %v\n", ui.ColorRed, ui.Reset, err)
+		fmt.Printf("%s[x] Dependency Error:%s %v\n", ui.ColorRed, ui.Reset, err)
 		os.Exit(1)
 	}
 
@@ -114,7 +114,7 @@ func main() {
 			runConvert(os.Args[1:])
 			return
 		}
-		fmt.Printf("%s❌ Unknown command or file:%s %s\n\n", ui.ColorRed, ui.Reset, command)
+		fmt.Printf("%s[x] Unknown command or file:%s %s\n\n", ui.ColorRed, ui.Reset, command)
 		printUsage()
 		os.Exit(1)
 	}
@@ -123,7 +123,7 @@ func main() {
 func runInteractiveMode() {
 	opts, err := ui.RunInteractiveWizard(version)
 	if err != nil {
-		fmt.Printf("%s❌ Error:%s %v\n", ui.ColorRed, ui.Reset, err)
+		fmt.Printf("%s[x] Error:%s %v\n", ui.ColorRed, ui.Reset, err)
 		os.Exit(1)
 	}
 
@@ -135,38 +135,38 @@ func runInteractiveMode() {
 
 	ext := extractor.NewPDFExtractor(cfg)
 
-	fmt.Printf("%s%s⏳ Extracting and transforming:%s %s...\n", ui.MintLight, ui.Bold, ui.Reset, filepath.Base(opts.PDFPath))
+	fmt.Printf("%s%s[*] Extracting and transforming:%s %s...\n", ui.TealLight, ui.Bold, ui.Reset, filepath.Base(opts.PDFPath))
 
 	if !opts.SplitByChapters {
 		doc, err := ext.ExtractFile(opts.PDFPath)
 		if err != nil {
-			fmt.Printf("%s❌ Extraction Error:%s %v\n", ui.ColorRed, ui.Reset, err)
+			fmt.Printf("%s[x] Extraction Error:%s %v\n", ui.ColorRed, ui.Reset, err)
 			os.Exit(1)
 		}
 		baseName := strings.TrimSuffix(filepath.Base(opts.PDFPath), filepath.Ext(opts.PDFPath))
 		targetFile := filepath.Join(opts.DestinationDir, baseName+".md")
 		if err := os.WriteFile(targetFile, []byte(doc.MarkdownContent), 0644); err != nil {
-			fmt.Printf("%s❌ Failed to save file:%s %v\n", ui.ColorRed, ui.Reset, err)
+			fmt.Printf("%s[x] Failed to save file:%s %v\n", ui.ColorRed, ui.Reset, err)
 			os.Exit(1)
 		}
-		fmt.Printf("\n%s%s✅ Success! Single file created:%s %s\n", ui.GreenLight, ui.Bold, ui.Reset, targetFile)
+		fmt.Printf("\n%s%s[+] Success! Single file created:%s %s\n", ui.TealBright, ui.Bold, ui.Reset, targetFile)
 		return
 	}
 
 	result, err := ext.ExtractToDirectory(opts.PDFPath, opts.DestinationDir)
 	if err != nil {
-		fmt.Printf("%s❌ Extraction Error:%s %v\n", ui.ColorRed, ui.Reset, err)
+		fmt.Printf("%s[x] Extraction Error:%s %v\n", ui.ColorRed, ui.Reset, err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("\n%s%s✨ Extraction Complete! ✨%s\n", ui.GreenLight, ui.Bold, ui.Reset)
-	fmt.Printf("   📂 %sDestination Folder:%s %s%s/%s\n", ui.Bold, ui.Reset, ui.MintLight, result.TargetDirectory, ui.Reset)
-	fmt.Printf("   📑 %sTOC Index:%s          %s/README.md\n", ui.Bold, ui.Reset, result.TargetDirectory)
-	fmt.Printf("   📚 %sTotal Chapters:%s     %d\n", ui.Bold, ui.Reset, len(result.Chapters))
+	fmt.Printf("\n%s%s[+] Extraction Complete%s\n", ui.TealBright, ui.Bold, ui.Reset)
+	fmt.Printf("   [-] %sDestination Folder:%s %s%s/%s\n", ui.Bold, ui.Reset, ui.TealLight, result.TargetDirectory, ui.Reset)
+	fmt.Printf("   [-] %sTOC Index:         %s %s/README.md\n", ui.Bold, ui.Reset, result.TargetDirectory)
+	fmt.Printf("   [-] %sTotal Chapters:    %s %d\n", ui.Bold, ui.Reset, len(result.Chapters))
 	for _, ch := range result.Chapters {
-		fmt.Printf("      %s✓%s [%02d] %s %s-> %s%s\n", ui.GreenLight, ui.Reset, ch.Index, ch.Title, ui.ColorGray, ch.Filename, ui.Reset)
+		fmt.Printf("       + [%02d] %s %s-> %s%s\n", ch.Index, ch.Title, ui.ColorGray, ch.Filename, ui.Reset)
 	}
-	fmt.Printf("   📊 %sStats:%s              %d total pages | %d converted | %d skipped/filtered.\n\n",
+	fmt.Printf("   [-] %sStats:             %s %d total pages | %d converted | %d skipped/filtered.\n\n",
 		ui.Bold, ui.Reset, result.TotalPages, result.ProcessedPages, result.SkippedPages)
 }
 
@@ -196,14 +196,14 @@ func runConvert(args []string) {
 
 	positional := fs.Args()
 	if len(positional) < 1 {
-		fmt.Printf("%s❌ Error: missing input PDF file path.%s\n", ui.ColorRed, ui.Reset)
+		fmt.Printf("%s[x] Error: missing input PDF file path.%s\n", ui.ColorRed, ui.Reset)
 		fmt.Println("Usage: pdf2md convert <input.pdf> [-o <output_dir>]")
 		os.Exit(1)
 	}
 
 	inputPdf := validator.ExpandPath(positional[0])
 	if err := validator.ValidatePDFFile(inputPdf); err != nil {
-		fmt.Printf("%s❌ %v%s\n", ui.ColorRed, err, ui.Reset)
+		fmt.Printf("%s[x] %v%s\n", ui.ColorRed, err, ui.Reset)
 		os.Exit(1)
 	}
 
@@ -214,7 +214,7 @@ func runConvert(args []string) {
 	}
 
 	if err := validator.ValidateDirectory(outputDir); err != nil {
-		fmt.Printf("%s❌ %v%s\n", ui.ColorRed, err, ui.Reset)
+		fmt.Printf("%s[x] %v%s\n", ui.ColorRed, err, ui.Reset)
 		os.Exit(1)
 	}
 
@@ -227,36 +227,36 @@ func runConvert(args []string) {
 
 	ext := extractor.NewPDFExtractor(cfg)
 
-	fmt.Printf("%s📄 Processing:%s %s...\n", ui.MintLight, ui.Reset, filepath.Base(inputPdf))
+	fmt.Printf("%s[*] Processing:%s %s...\n", ui.TealLight, ui.Reset, filepath.Base(inputPdf))
 
 	if singleFile {
 		doc, err := ext.ExtractFile(inputPdf)
 		if err != nil {
-			fmt.Printf("%s❌ Extraction failed:%s %v\n", ui.ColorRed, ui.Reset, err)
+			fmt.Printf("%s[x] Extraction failed:%s %v\n", ui.ColorRed, ui.Reset, err)
 			os.Exit(1)
 		}
 		targetFile := filepath.Join(outputDir, strings.TrimSuffix(filepath.Base(inputPdf), filepath.Ext(inputPdf))+".md")
 		if err := os.WriteFile(targetFile, []byte(doc.MarkdownContent), 0644); err != nil {
-			fmt.Printf("%s❌ Failed to save file:%s %v\n", ui.ColorRed, ui.Reset, err)
+			fmt.Printf("%s[x] Failed to save file:%s %v\n", ui.ColorRed, ui.Reset, err)
 			os.Exit(1)
 		}
-		fmt.Printf("%s✅ Success! Single file saved to:%s %s\n", ui.GreenLight, ui.Reset, targetFile)
+		fmt.Printf("%s[+] Success! Single file saved to:%s %s\n", ui.TealBright, ui.Reset, targetFile)
 		return
 	}
 
 	result, err := ext.ExtractToDirectory(inputPdf, outputDir)
 	if err != nil {
-		fmt.Printf("%s❌ Extraction failed:%s %v\n", ui.ColorRed, ui.Reset, err)
+		fmt.Printf("%s[x] Extraction failed:%s %v\n", ui.ColorRed, ui.Reset, err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("%s✅ Success! Extracted into folder:%s %s/\n", ui.GreenLight, ui.Reset, result.TargetDirectory)
-	fmt.Printf("   📑 TOC Index: %s/README.md\n", result.TargetDirectory)
-	fmt.Printf("   📚 Total Chapters: %d\n", len(result.Chapters))
+	fmt.Printf("%s[+] Success! Extracted into folder:%s %s/\n", ui.TealBright, ui.Reset, result.TargetDirectory)
+	fmt.Printf("   [-] TOC Index: %s/README.md\n", result.TargetDirectory)
+	fmt.Printf("   [-] Total Chapters: %d\n", len(result.Chapters))
 	for _, ch := range result.Chapters {
-		fmt.Printf("      - [%02d] %s -> %s\n", ch.Index, ch.Title, ch.Filename)
+		fmt.Printf("       + [%02d] %s -> %s\n", ch.Index, ch.Title, ch.Filename)
 	}
-	fmt.Printf("   📊 Stats: %d total pages | %d converted | %d skipped/filtered.\n",
+	fmt.Printf("   [-] Stats: %d total pages | %d converted | %d skipped/filtered.\n",
 		result.TotalPages, result.ProcessedPages, result.SkippedPages)
 }
 
@@ -281,7 +281,7 @@ func runBatch(args []string) {
 
 	positional := fs.Args()
 	if len(positional) < 1 {
-		fmt.Printf("%s❌ Error: missing input directory.%s\n", ui.ColorRed, ui.Reset)
+		fmt.Printf("%s[x] Error: missing input directory.%s\n", ui.ColorRed, ui.Reset)
 		fmt.Println("Usage: pdf2md batch <directory> [-o <output_dir>] [-r]")
 		os.Exit(1)
 	}
@@ -294,7 +294,7 @@ func runBatch(args []string) {
 	}
 
 	if err := validator.ValidateDirectory(outputDir); err != nil {
-		fmt.Printf("%s❌ %v%s\n", ui.ColorRed, err, ui.Reset)
+		fmt.Printf("%s[x] %v%s\n", ui.ColorRed, err, ui.Reset)
 		os.Exit(1)
 	}
 
@@ -315,7 +315,7 @@ func runBatch(args []string) {
 	} else {
 		entries, err := os.ReadDir(inputDir)
 		if err != nil {
-			fmt.Printf("%s❌ Error reading directory:%s %v\n", ui.ColorRed, ui.Reset, err)
+			fmt.Printf("%s[x] Error reading directory:%s %v\n", ui.ColorRed, ui.Reset, err)
 			os.Exit(1)
 		}
 		for _, entry := range entries {
@@ -326,25 +326,25 @@ func runBatch(args []string) {
 	}
 
 	if len(pdfFiles) == 0 {
-		fmt.Printf("%s⚠️  No PDF files found in '%s'%s\n", ui.ColorYellow, inputDir, ui.Reset)
+		fmt.Printf("%s[!] No PDF files found in '%s'%s\n", ui.ColorYellow, inputDir, ui.Reset)
 		return
 	}
 
-	fmt.Printf("%s🔍 Found %d PDF file(s) in %s%s\n", ui.MintLight, len(pdfFiles), inputDir, ui.Reset)
+	fmt.Printf("%s[*] Found %d PDF file(s) in %s%s\n", ui.TealLight, len(pdfFiles), inputDir, ui.Reset)
 
 	successCount := 0
 	for _, pdf := range pdfFiles {
-		fmt.Printf("\n📄 Converting %s...\n", filepath.Base(pdf))
+		fmt.Printf("\n[*] Converting %s...\n", filepath.Base(pdf))
 		res, err := ext.ExtractToDirectory(pdf, outputDir)
 		if err != nil {
-			fmt.Printf("   %s✗ Failed:%s %v\n", ui.ColorRed, ui.Reset, err)
+			fmt.Printf("   %s[x] Failed:%s %v\n", ui.ColorRed, ui.Reset, err)
 			continue
 		}
 
-		fmt.Printf("   %s✓ Created folder:%s %s/ (%d chapters)\n", ui.GreenLight, ui.Reset, filepath.Base(res.TargetDirectory), len(res.Chapters))
+		fmt.Printf("   %s[+] Created folder:%s %s/ (%d chapters)\n", ui.TealBright, ui.Reset, filepath.Base(res.TargetDirectory), len(res.Chapters))
 		successCount++
 	}
 
-	fmt.Printf("\n%s🎉 Batch processing complete! %d/%d PDF documents converted into chapter folders.%s\nBase destination: %s\n",
-		ui.GreenLight, successCount, len(pdfFiles), ui.Reset, outputDir)
+	fmt.Printf("\n%s[+] Batch processing complete! %d/%d PDF documents converted into chapter folders.%s\nBase destination: %s\n",
+		ui.TealBright, successCount, len(pdfFiles), ui.Reset, outputDir)
 }

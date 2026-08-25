@@ -62,7 +62,6 @@ func (s *Splitter) SplitIntoChapters(pages []models.PDFPage, pdfTitle string) []
 			}
 
 			if isNewChapter {
-				// Save existing chapter if it has content
 				if currentChapter != nil && len(currentChapter.Lines) > 0 {
 					currentChapter.Content = s.transformer.Transform([][]string{currentChapter.Lines})
 					chapters = append(chapters, *currentChapter)
@@ -82,7 +81,6 @@ func (s *Splitter) SplitIntoChapters(pages []models.PDFPage, pdfTitle string) []
 				chapterIndex++
 			} else {
 				if currentChapter == nil {
-					// Preamble or first chapter before explicit marker
 					currentChapter = &models.Chapter{
 						Index:     chapterIndex,
 						Title:     "Introduction & Overview",
@@ -98,13 +96,11 @@ func (s *Splitter) SplitIntoChapters(pages []models.PDFPage, pdfTitle string) []
 		}
 	}
 
-	// Add final chapter
 	if currentChapter != nil && len(currentChapter.Lines) > 0 {
 		currentChapter.Content = s.transformer.Transform([][]string{currentChapter.Lines})
 		chapters = append(chapters, *currentChapter)
 	}
 
-	// If no chapters detected, wrap all into a single chapter
 	if len(chapters) == 0 {
 		var allLines []string
 		for _, p := range pages {
@@ -134,10 +130,10 @@ func (s *Splitter) GenerateTOCIndex(pdfName string, chapters []models.Chapter, t
 	cleanName := strings.ReplaceAll(pdfName, "_", " ")
 	cleanName = strings.ReplaceAll(cleanName, "-", " ")
 
-	sb.WriteString(fmt.Sprintf("# 📖 %s\n\n", cleanName))
+	sb.WriteString(fmt.Sprintf("# %s\n\n", cleanName))
 	sb.WriteString("Extracted and transformed from PDF into chapter-based Markdown notes.\n\n")
 	sb.WriteString("---\n\n")
-	sb.WriteString("## 📑 Table of Contents\n\n")
+	sb.WriteString("## Table of Contents\n\n")
 	sb.WriteString("| # | Chapter Title | Start Page | Notes File |\n")
 	sb.WriteString("| :- | :--- | :--- | :--- |\n")
 
@@ -147,7 +143,7 @@ func (s *Splitter) GenerateTOCIndex(pdfName string, chapters []models.Chapter, t
 	}
 
 	sb.WriteString("\n---\n\n")
-	sb.WriteString("### 📊 Document Summary\n")
+	sb.WriteString("### Document Summary\n")
 	sb.WriteString(fmt.Sprintf("- **Total Chapters Extracted:** %d\n", len(chapters)))
 	sb.WriteString(fmt.Sprintf("- **Total PDF Pages:** %d\n", totalPages))
 	sb.WriteString("- **Non-usable Assets (Images / Appendix / Index):** Automatically Filtered & Excluded.\n")
@@ -156,7 +152,6 @@ func (s *Splitter) GenerateTOCIndex(pdfName string, chapters []models.Chapter, t
 }
 
 func sanitizeSlug(s string) string {
-	// Strip prefix like "CHAPTER 1:", "Part 2:", etc.
 	prefixRegex := regexp.MustCompile(`(?i)^(chapter|part|module|section)\s+\d+[:.]?\s*`)
 	cleaned := prefixRegex.ReplaceAllString(s, "")
 

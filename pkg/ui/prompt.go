@@ -10,7 +10,7 @@ import (
 	"github.com/devops/pdf2md/pkg/validator"
 )
 
-// ANSI Styling & Gradient Palette
+// ANSI Styling & Teal Palette
 const (
 	Reset     = "\033[0m"
 	Bold      = "\033[1m"
@@ -18,15 +18,14 @@ const (
 	Italic    = "\033[3m"
 	Underline = "\033[4m"
 
-	// Teal-to-Green Gradient Shades (24-bit TrueColor)
-	TealDark   = "\033[38;2;14;116;144m" // Deep Teal
-	TealMed    = "\033[38;2;13;148;136m" // Rich Teal
+	// Teal Palette Shades (24-bit TrueColor)
+	TealDeep   = "\033[38;2;15;118;110m" // Deep Teal
+	TealMed    = "\033[38;2;13;148;136m" // Classic Teal
 	TealBright = "\033[38;2;20;184;166m" // Bright Teal
-	MintLight  = "\033[38;2;45;212;191m" // Mint Green
-	GreenLight = "\033[38;2;52;211;153m" // Emerald Green
-	GreenNeon  = "\033[38;2;110;231;183m" // Spring Green
+	TealLight  = "\033[38;2;45;212;191m" // Mint Teal
+	TealPale   = "\033[38;2;94;234;212m" // Light Teal
 
-	// Status Colors
+	// Status Colors (No emojis)
 	ColorYellow = "\033[38;2;251;191;36m"
 	ColorRed    = "\033[38;2;248;113;113m"
 	ColorGray   = "\033[38;2;148;163;184m"
@@ -43,20 +42,20 @@ type InteractiveOptions struct {
 	EndPage         int
 }
 
-// PrintBanner renders the big stylized gradient ytpMD logo with [pdf2md] underneath.
+// PrintBanner renders the big italic painted teal ASCII ytpMD logo with [pdf2md] underneath.
 func PrintBanner(version string) {
 	fmt.Println()
-	// Big Painted ASCII Art with Teal-to-Green Gradient
-	fmt.Printf("%s%s  ██╗   ██╗████████╗██████╗ ███╗   ███╗██████╗ %s\n", TealDark, Bold, Reset)
-	fmt.Printf("%s%s  ╚██╗ ██╔╝╚══██╔══╝██╔══██╗████╗ ████║██╔══██╗%s\n", TealMed, Bold, Reset)
-	fmt.Printf("%s%s   ╚████╔╝    ██║   ██████╔╝██╔████╔██║██║  ██║%s\n", TealBright, Bold, Reset)
-	fmt.Printf("%s%s    ╚██╔╝     ██║   ██╔═══╝ ██║╚██╔╝██║██║  ██║%s\n", MintLight, Bold, Reset)
-	fmt.Printf("%s%s     ██║      ██║   ██║     ██║ ╚═╝ ██║██████╔╝%s\n", GreenLight, Bold, Reset)
-	fmt.Printf("%s%s     ╚═╝      ╚═╝   ╚═╝     ╚═╝     ╚═╝╚═════╝ %s\n", GreenNeon, Bold, Reset)
-	
-	// Centered Subtitle [pdf2md] and Italicized Description
-	fmt.Printf("               %s%s%s[ pdf2md ]%s  %s%sv%s%s\n", MintLight, Bold, Italic, Reset, ColorGray, Italic, version, Reset)
-	fmt.Printf("   %s%s⚡ High-Performance PDF to Markdown Engine ⚡%s\n", GreenNeon, Italic, Reset)
+	// Big Italic Painted ASCII Art with Teal Gradient
+	fmt.Printf("%s%s%s  ██╗   ██╗████████╗██████╗ ███╗   ███╗██████╗ %s\n", TealDeep, Bold, Italic, Reset)
+	fmt.Printf("%s%s%s  ╚██╗ ██╔╝╚══██╔══╝██╔══██╗████╗ ████║██╔══██╗%s\n", TealMed, Bold, Italic, Reset)
+	fmt.Printf("%s%s%s   ╚████╔╝    ██║   ██████╔╝██╔████╔██║██║  ██║%s\n", TealMed, Bold, Italic, Reset)
+	fmt.Printf("%s%s%s    ╚██╔╝     ██║   ██╔═══╝ ██║╚██╔╝██║██║  ██║%s\n", TealBright, Bold, Italic, Reset)
+	fmt.Printf("%s%s%s     ██║      ██║   ██║     ██║ ╚═╝ ██║██████╔╝%s\n", TealLight, Bold, Italic, Reset)
+	fmt.Printf("%s%s%s     ╚═╝      ╚═╝   ╚═╝     ╚═╝     ╚═╝╚═════╝ %s\n", TealPale, Bold, Italic, Reset)
+
+	// Centered Subtitle [pdf2md] in Italic Teal
+	fmt.Printf("               %s%s%s[ pdf2md ]%s  %s%sv%s%s\n", TealLight, Bold, Italic, Reset, ColorGray, Italic, version, Reset)
+	fmt.Printf("   %s%s-- High-Performance PDF to Markdown Engine --%s\n", TealBright, Italic, Reset)
 	fmt.Printf("   %s%sTransforms PDFs into Chapter-Aware Markdown Notes with Zero Noise%s\n", ColorGray, Italic, Reset)
 	fmt.Println()
 }
@@ -64,7 +63,7 @@ func PrintBanner(version string) {
 // PromptPDFFile interactively requests and validates a PDF file path.
 func PromptPDFFile(reader *bufio.Reader) (string, error) {
 	for {
-		fmt.Printf("%s%s[?]%s %sEnter PDF file path:%s ", MintLight, Bold, Reset, Italic, Reset)
+		fmt.Printf("%s%s%s[?]%s %s%sEnter PDF file path:%s ", TealLight, Bold, Italic, Reset, TealBright, Italic, Reset)
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			return "", fmt.Errorf("input stream closed")
@@ -74,13 +73,13 @@ func PromptPDFFile(reader *bufio.Reader) (string, error) {
 		trimmed = strings.Trim(trimmed, "\"'")
 
 		if trimmed == "" {
-			fmt.Printf("%s⚠️  Please provide a valid PDF file path.%s\n", ColorYellow, Reset)
+			fmt.Printf("%s[!] Please provide a valid PDF file path.%s\n", ColorYellow, Reset)
 			continue
 		}
 
 		cleanPath := validator.ExpandPath(trimmed)
 		if err := validator.ValidatePDFFile(cleanPath); err != nil {
-			fmt.Printf("%s❌ %v%s\n", ColorRed, err, Reset)
+			fmt.Printf("%s[x] %v%s\n", ColorRed, err, Reset)
 			fmt.Printf("%sPlease try again.%s\n", ColorGray, Reset)
 			continue
 		}
@@ -93,7 +92,7 @@ func PromptPDFFile(reader *bufio.Reader) (string, error) {
 func PromptDestinationDir(reader *bufio.Reader, defaultDir string) (string, error) {
 	defaultExpanded := validator.ExpandPath(defaultDir)
 	for {
-		fmt.Printf("%s%s[?]%s %sEnter destination directory%s %s[%s]%s: ", MintLight, Bold, Reset, Italic, Reset, ColorGray, defaultDir, Reset)
+		fmt.Printf("%s%s%s[?]%s %s%sEnter destination directory%s %s[%s]%s: ", TealLight, Bold, Italic, Reset, TealBright, Italic, Reset, ColorGray, defaultDir, Reset)
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			return defaultExpanded, nil
@@ -108,7 +107,7 @@ func PromptDestinationDir(reader *bufio.Reader, defaultDir string) (string, erro
 
 		cleanPath := validator.ExpandPath(trimmed)
 		if err := validator.ValidateDirectory(cleanPath); err != nil {
-			fmt.Printf("%s❌ %v%s\n", ColorRed, err, Reset)
+			fmt.Printf("%s[x] %v%s\n", ColorRed, err, Reset)
 			fmt.Printf("%sPlease try again.%s\n", ColorGray, Reset)
 			continue
 		}
@@ -120,7 +119,7 @@ func PromptDestinationDir(reader *bufio.Reader, defaultDir string) (string, erro
 // PromptInt prompts for an integer with a default fallback.
 func PromptInt(reader *bufio.Reader, label string, defaultValue int, minVal int) int {
 	for {
-		fmt.Printf("%s%s[?]%s %s%s%s %s[%d]%s: ", MintLight, Bold, Reset, Italic, label, Reset, ColorGray, defaultValue, Reset)
+		fmt.Printf("%s%s%s[?]%s %s%s%s%s %s[%d]%s: ", TealLight, Bold, Italic, Reset, TealBright, Italic, label, Reset, ColorGray, defaultValue, Reset)
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			return defaultValue
@@ -133,7 +132,7 @@ func PromptInt(reader *bufio.Reader, label string, defaultValue int, minVal int)
 
 		val, err := strconv.Atoi(trimmed)
 		if err != nil || val < minVal {
-			fmt.Printf("%s⚠️  Please enter a valid number (>= %d).%s\n", ColorYellow, minVal, Reset)
+			fmt.Printf("%s[!] Please enter a valid number (>= %d).%s\n", ColorYellow, minVal, Reset)
 			continue
 		}
 
@@ -149,7 +148,7 @@ func PromptBool(reader *bufio.Reader, label string, defaultVal bool) bool {
 	}
 
 	for {
-		fmt.Printf("%s%s[?]%s %s%s%s %s(%s)%s: ", MintLight, Bold, Reset, Italic, label, Reset, ColorGray, options, Reset)
+		fmt.Printf("%s%s%s[?]%s %s%s%s%s %s(%s)%s: ", TealLight, Bold, Italic, Reset, TealBright, Italic, label, Reset, ColorGray, options, Reset)
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			return defaultVal
@@ -167,7 +166,7 @@ func PromptBool(reader *bufio.Reader, label string, defaultVal bool) bool {
 			return false
 		}
 
-		fmt.Printf("%s⚠️  Please answer with 'y' or 'n'.%s\n", ColorYellow, Reset)
+		fmt.Printf("%s[!] Please answer with 'y' or 'n'.%s\n", ColorYellow, Reset)
 	}
 }
 
@@ -195,7 +194,7 @@ func RunInteractiveWizard(version string) (*InteractiveOptions, error) {
 
 	if useDefaults {
 		fmt.Println()
-		fmt.Printf("%s%s[✓] Applying production defaults (TOC chapters extracted, Appendix/Index excluded).%s\n\n", GreenLight, Bold, Reset)
+		fmt.Printf("%s%s[+] Applying production defaults (TOC chapters extracted, Appendix/Index excluded).%s\n\n", TealBright, Bold, Reset)
 		return &InteractiveOptions{
 			PDFPath:         pdfPath,
 			DestinationDir:  destDir,
@@ -223,7 +222,7 @@ func RunInteractiveWizard(version string) (*InteractiveOptions, error) {
 	}
 
 	fmt.Println()
-	fmt.Printf("%s%s[✓] All custom settings configured. Starting extraction...%s\n\n", GreenLight, Bold, Reset)
+	fmt.Printf("%s%s[+] All custom settings configured. Starting extraction...%s\n\n", TealBright, Bold, Reset)
 
 	return &InteractiveOptions{
 		PDFPath:         pdfPath,
