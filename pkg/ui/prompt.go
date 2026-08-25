@@ -60,10 +60,11 @@ func PrintBanner(version string) {
 	fmt.Println()
 }
 
-// PromptPDFFile interactively requests and validates a PDF file path.
+// PromptPDFFile interactively requests PDF path, opening a GUI file selection window if Enter is pressed on empty input.
 func PromptPDFFile(reader *bufio.Reader) (string, error) {
 	for {
-		fmt.Printf("%s%s%s[?]%s %s%sEnter PDF file path:%s ", TealLight, Bold, Italic, Reset, TealBright, Italic, Reset)
+		fmt.Printf("%s%s%s[?]%s %s%sEnter PDF path%s %s[or press Enter to open file chooser window]%s: ",
+			TealLight, Bold, Italic, Reset, TealBright, Italic, Reset, ColorGray, Reset)
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			return "", fmt.Errorf("input stream closed")
@@ -72,8 +73,22 @@ func PromptPDFFile(reader *bufio.Reader) (string, error) {
 		trimmed := strings.TrimSpace(input)
 		trimmed = strings.Trim(trimmed, "\"'")
 
+		// If user pressed Enter with empty input -> Launch GUI File Chooser Window
 		if trimmed == "" {
-			fmt.Printf("%s[!] Please provide a valid PDF file path.%s\n", ColorYellow, Reset)
+			fmt.Printf("%s[*] Opening file selection window...%s\n", TealLight, Reset)
+			selected, err := OpenFilePicker("Select PDF Document", "PDF Files (*.pdf) | *.pdf *.PDF")
+			if err == nil && selected != "" {
+				cleanSelected := validator.ExpandPath(selected)
+				if err := validator.ValidatePDFFile(cleanSelected); err == nil {
+					fmt.Printf("%s[+] Selected file: %s%s\n", TealBright, cleanSelected, Reset)
+					return cleanSelected, nil
+				} else {
+					fmt.Printf("%s[x] %v%s\n", ColorRed, err, Reset)
+				}
+			} else {
+				fmt.Printf("%s[!] Window selection cancelled or not available in current terminal.%s\n", ColorYellow, Reset)
+			}
+			fmt.Printf("%sPlease type or paste the PDF file path:%s ", ColorGray, Reset)
 			continue
 		}
 
@@ -88,11 +103,12 @@ func PromptPDFFile(reader *bufio.Reader) (string, error) {
 	}
 }
 
-// PromptDestinationDir requests destination folder with smart default.
+// PromptDestinationDir requests destination folder, defaulting to ~/Downloads.
 func PromptDestinationDir(reader *bufio.Reader, defaultDir string) (string, error) {
 	defaultExpanded := validator.ExpandPath(defaultDir)
 	for {
-		fmt.Printf("%s%s%s[?]%s %s%sEnter destination directory%s %s[%s]%s: ", TealLight, Bold, Italic, Reset, TealBright, Italic, Reset, ColorGray, defaultDir, Reset)
+		fmt.Printf("%s%s%s[?]%s %s%sEnter destination directory%s %s[%s, or 'b' to browse]%s: ",
+			TealLight, Bold, Italic, Reset, TealBright, Italic, Reset, ColorGray, defaultDir, Reset)
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			return defaultExpanded, nil
@@ -101,8 +117,31 @@ func PromptDestinationDir(reader *bufio.Reader, defaultDir string) (string, erro
 		trimmed := strings.TrimSpace(input)
 		trimmed = strings.Trim(trimmed, "\"'")
 
+		// Default to ~/Downloads on Enter
 		if trimmed == "" {
+			if err := validator.ValidateDirectory(defaultExpanded); err == nil {
+				return defaultExpanded, nil
+			}
 			return defaultExpanded, nil
+		}
+
+		// User entered 'b' or 'browse' -> Launch GUI Directory Chooser Window
+		if strings.ToLower(trimmed) == "b" || strings.ToLower(trimmed) == "browse" {
+			fmt.Printf("%s[*] Opening directory selection window...%s\n", TealLight, Reset)
+			selected, err := OpenDirectoryPicker("Select Destination Directory", defaultExpanded)
+			if err == nil && selected != "" {
+				cleanSelected := validator.ExpandPath(selected)
+				if err := validator.ValidateDirectory(cleanSelected); err == nil {
+					fmt.Printf("%s[+] Selected destination: %s%s\n", TealBright, cleanSelected, Reset)
+					return cleanSelected, nil
+				} else {
+					fmt.Printf("%s[x] %v%s\n", ColorRed, err, Reset)
+				}
+			} else {
+				fmt.Printf("%s[!] Directory selection cancelled. Using default: %s%s\n", ColorYellow, defaultDir, Reset)
+				return defaultExpanded, nil
+			}
+			continue
 		}
 
 		cleanPath := validator.ExpandPath(trimmed)
@@ -176,15 +215,15 @@ func RunInteractiveWizard(version string) (*InteractiveOptions, error) {
 
 	reader := bufio.NewReader(os.Stdin)
 
-	// 1. Ask for input PDF file
+	// 1. Ask for input PDF file (Pressing Enter launches file chooser window)
 	pdfPath, err := PromptPDFFile(reader)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Ask for destination directory (default to current directory)
-	currentDir, _ := os.Getwd()
-	destDir, err := PromptDestinationDir(reader, currentDir)
+	// 2. Ask for destination directory (Default: ~/Downloads)
+	defaultDownloads := "~/Downloads"
+	destDir, err := PromptDestinationDir(reader, defaultDownloads)
 	if err != nil {
 		return nil, err
 	}
