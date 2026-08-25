@@ -33,9 +33,18 @@ jobs:
       - name: Build Cross-Platform Release Archives
         run: ./scripts/build-dist.sh
 
-      - name: Generate Checksums
+      - name: Generate SHA256 Checksums
         working-directory: dist
-        run: sha256sum * > checksums.txt
+        run: |
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: Upload Binaries to Supabase Storage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_BUCKET: ${{ secrets.SUPABASE_BUCKET || 'releases' }}
+        run: ./scripts/upload-supabase.sh dist
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -45,3 +54,4 @@ jobs:
           generate_release_notes: true
           draft: false
           prerelease: false
+

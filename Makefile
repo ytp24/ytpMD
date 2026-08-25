@@ -13,18 +13,20 @@ test:
 build:
 	mkdir -p bin
 	CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/ytpmd ./cmd/ytpmd
+	CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/ytpmd-mcp ./cmd/ytpmd-mcp
 	cp -f bin/ytpmd bin/ytpMD
 	cp -f bin/ytpmd bin/ytp24
 	cp -f bin/ytpmd bin/pdf2md
 
 install: build
 	mkdir -p $(HOME)/.local/bin
-	rm -f $(HOME)/.local/bin/ytpmd $(HOME)/.local/bin/ytpMD $(HOME)/.local/bin/ytp24 $(HOME)/.local/bin/pdf2md
+	rm -f $(HOME)/.local/bin/ytpmd $(HOME)/.local/bin/ytpMD $(HOME)/.local/bin/ytp24 $(HOME)/.local/bin/pdf2md $(HOME)/.local/bin/ytpmd-mcp
 	cp -f bin/ytpmd $(HOME)/.local/bin/ytpmd
 	cp -f bin/ytpmd $(HOME)/.local/bin/ytpMD
 	cp -f bin/ytpmd $(HOME)/.local/bin/ytp24
 	cp -f bin/ytpmd $(HOME)/.local/bin/pdf2md
-	@echo "Installed ytpmd (aliases: ytpMD, ytp24, pdf2md) to $(HOME)/.local/bin/"
+	cp -f bin/ytpmd-mcp $(HOME)/.local/bin/ytpmd-mcp
+	@echo "Installed ytpmd (aliases: ytpMD, ytp24, pdf2md, ytpmd-mcp) to $(HOME)/.local/bin/"
 
 deb:
 	./scripts/build-deb.sh

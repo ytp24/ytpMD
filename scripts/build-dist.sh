@@ -25,12 +25,15 @@ for PLATFORM in "${PLATFORMS[@]}"; do
     rm -rf "${TARGET_DIR}"
     mkdir -p "${TARGET_DIR}"
 
-    BINARY="ytpMD"
+    BINARY="ytpmd"
+    MCP_BINARY="ytpmd-mcp"
     if [ "${GOOS}" = "windows" ]; then
-        BINARY="ytpMD.exe"
+        BINARY="ytpmd.exe"
+        MCP_BINARY="ytpmd-mcp.exe"
     fi
 
-    CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -ldflags="-s -w" -o "${TARGET_DIR}/${BINARY}" ./cmd/ytpMD
+    CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -ldflags="-s -w" -o "${TARGET_DIR}/${BINARY}" ./cmd/ytpmd
+    CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -ldflags="-s -w" -o "${TARGET_DIR}/${MCP_BINARY}" ./cmd/ytpmd-mcp
     cp README.md LICENSE LEGAL.md "${TARGET_DIR}/"
 
     if [ "${GOOS}" = "windows" ]; then

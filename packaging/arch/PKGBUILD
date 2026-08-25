@@ -1,0 +1,27 @@
+# Maintainer: ytp24 <ykinwork24@gmail.com>
+pkgname=ytpmd-bin
+pkgver=3.2.0
+pkgrel=1
+pkgdesc="High-Performance Concurrent PDF to Chapter Markdown Engine & MCP Server"
+arch=('x86_64' 'aarch64')
+url="https://github.com/ytp24/ytpMD"
+license=('Apache-2.0')
+depends=('poppler')
+provides=('ytpmd' 'ytpMD' 'pdf2md' 'ytpmd-mcp')
+conflicts=('ytpmd')
+
+source_x86_64=("https://github.com/ytp24/ytpMD/releases/download/v${pkgver}/ytpMD-${pkgver}-linux-amd64.tar.gz")
+source_aarch64=("https://github.com/ytp24/ytpMD/releases/download/v${pkgver}/ytpMD-${pkgver}-linux-arm64.tar.gz")
+sha256sums_x86_64=('SKIP')
+sha256sums_aarch64=('SKIP')
+
+package() {
+    install -Dm755 "${srcdir}/ytpMD-${pkgver}-linux-${CARCH/x86_64/amd64}/ytpmd" "${pkgdir}/usr/bin/ytpmd"
+    if [ -f "${srcdir}/ytpMD-${pkgver}-linux-${CARCH/x86_64/amd64}/ytpmd-mcp" ]; then
+        install -Dm755 "${srcdir}/ytpMD-${pkgver}-linux-${CARCH/x86_64/amd64}/ytpmd-mcp" "${pkgdir}/usr/bin/ytpmd-mcp"
+    fi
+    ln -s /usr/bin/ytpmd "${pkgdir}/usr/bin/ytpMD"
+    ln -s /usr/bin/ytpmd "${pkgdir}/usr/bin/ytp24"
+    ln -s /usr/bin/ytpmd "${pkgdir}/usr/bin/pdf2md"
+    install -Dm644 "${srcdir}/ytpMD-${pkgver}-linux-${CARCH/x86_64/amd64}/LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

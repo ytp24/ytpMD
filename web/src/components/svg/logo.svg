@@ -1,0 +1,303 @@
+<div className="ytpmd-logo">
+  <svg
+    viewBox="0 0 370 110"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="ytpMD"
+  >
+    <defs>
+      {/* =========================================================
+          ACTUAL YTPMD LETTER SHAPES
+          ========================================================= */}
+
+      <clipPath id="ytpmd-fill-clip">
+
+        {/* Y */}
+        <path d="
+          M 8 8
+          H 28
+          V 25
+          H 35
+          V 40
+          H 43
+          V 52
+          H 51
+          V 94
+          H 67
+          V 52
+          H 75
+          V 40
+          H 83
+          V 25
+          H 90
+          V 8
+          H 70
+          V 25
+          H 63
+          V 40
+          H 55
+          V 25
+          H 48
+          V 8
+          Z
+        " />
+
+        {/* T */}
+        <path d="
+          M 82 8
+          H 151
+          V 25
+          H 132
+          V 94
+          H 114
+          V 25
+          H 82
+          Z
+        " />
+
+        {/* P */}
+        <path d="
+          M 151 8
+          H 204
+          V 25
+          H 212
+          V 55
+          H 204
+          V 64
+          H 169
+          V 94
+          H 151
+          Z
+
+          M 169 25
+          H 193
+          V 47
+          H 169
+          Z
+        " fillRule="evenodd" />
+
+        {/* M */}
+        <path d="
+          M 216 8
+          H 234
+          V 25
+          H 242
+          V 40
+          H 250
+          V 25
+          H 258
+          V 8
+          H 276
+          V 94
+          H 258
+          V 42
+          H 250
+          V 58
+          H 242
+          V 42
+          H 234
+          V 94
+          H 216
+          Z
+        " />
+
+        {/* D */}
+        <path d="
+          M 281 8
+          H 330
+          V 16
+          H 338
+          V 25
+          H 346
+          V 78
+          H 338
+          V 86
+          H 330
+          V 94
+          H 281
+          Z
+
+          M 299 25
+          V 77
+          H 321
+          V 69
+          H 328
+          V 33
+          H 321
+          V 25
+          Z
+        " fillRule="evenodd" />
+
+      </clipPath>
+
+      {/* CLI-style vertical colour */}
+      <linearGradient
+        id="ytpmd-fill-gradient"
+        x1="0"
+        y1="1"
+        x2="0"
+        y2="0"
+      >
+        <stop offset="0%" stopColor="#5eead4" />
+        <stop offset="18%" stopColor="#2dd4bf" />
+        <stop offset="45%" stopColor="#14b8a6" />
+        <stop offset="72%" stopColor="#0d9488" />
+        <stop offset="100%" stopColor="#0f766e" />
+      </linearGradient>
+    </defs>
+
+
+    {/* =========================================================
+        OFFSET / TERMINAL SHADOW
+        ========================================================= */}
+
+    <g
+      fill="none"
+      stroke="#0d9488"
+      strokeWidth="2"
+      strokeLinejoin="miter"
+      transform="translate(5 5)"
+      opacity="0.95"
+    >
+      <path d="
+        M 8 8 H 28 V 25 H 35 V 40 H 43 V 52 H 51 V 94
+        H 67 V 52 H 75 V 40 H 83 V 25 H 90 V 8
+        H 70 V 25 H 63 V 40 H 55 V 25 H 48 V 8 Z
+      " />
+
+      <path d="
+        M 82 8 H 151 V 25 H 132 V 94 H 114 V 25 H 82 Z
+      " />
+
+      <path d="
+        M 151 8 H 204 V 25 H 212 V 55 H 204 V 64
+        H 169 V 94 H 151 Z
+        M 169 25 H 193 V 47 H 169 Z
+      " fillRule="evenodd" />
+
+      <path d="
+        M 216 8 H 234 V 25 H 242 V 40 H 250 V 25
+        H 258 V 8 H 276 V 94 H 258 V 42 H 250 V 58
+        H 242 V 42 H 234 V 94 H 216 Z
+      " />
+
+      <path d="
+        M 281 8 H 330 V 16 H 338 V 25 H 346 V 78
+        H 338 V 86 H 330 V 94 H 281 Z
+        M 299 25 V 77 H 321 V 69 H 328 V 33
+        H 321 V 25 Z
+      " fillRule="evenodd" />
+    </g>
+
+
+    {/* =========================================================
+        DARK BASE
+        ========================================================= */}
+
+    <g fill="#0f766e">
+
+      <path d="
+        M 8 8 H 28 V 25 H 35 V 40 H 43 V 52
+        H 51 V 94 H 67 V 52 H 75 V 40 H 83
+        V 25 H 90 V 8 H 70 V 25 H 63 V 40
+        H 55 V 25 H 48 V 8 Z
+      " />
+
+      <path d="
+        M 82 8 H 151 V 25 H 132 V 94 H 114
+        V 25 H 82 Z
+      " />
+
+      <path d="
+        M 151 8 H 204 V 25 H 212 V 55 H 204
+        V 64 H 169 V 94 H 151 Z
+
+        M 169 25 H 193 V 47 H 169 Z
+      " fillRule="evenodd" />
+
+      <path d="
+        M 216 8 H 234 V 25 H 242 V 40 H 250
+        V 25 H 258 V 8 H 276 V 94 H 258 V 42
+        H 250 V 58 H 242 V 42 H 234 V 94 H 216 Z
+      " />
+
+      <path d="
+        M 281 8 H 330 V 16 H 338 V 25 H 346
+        V 78 H 338 V 86 H 330 V 94 H 281 Z
+
+        M 299 25 V 77 H 321 V 69 H 328 V 33
+        H 321 V 25 Z
+      " fillRule="evenodd" />
+
+    </g>
+
+
+    {/* =========================================================
+        ANIMATED FILL
+        ========================================================= */}
+
+    <g clipPath="url(#ytpmd-fill-clip)">
+      <rect
+        x="0"
+        y="94"
+        width="370"
+        height="100"
+        fill="url(#ytpmd-fill-gradient)"
+      >
+        <animate
+          attributeName="y"
+          from="94"
+          to="-6"
+          dur="2.8s"
+          repeatCount="indefinite"
+        />
+      </rect>
+    </g>
+
+
+    {/* =========================================================
+        FRONT OUTLINE
+        ========================================================= */}
+
+    <g
+      fill="none"
+      stroke="#2dd4bf"
+      strokeWidth="1.5"
+      strokeLinejoin="miter"
+    >
+      <path d="
+        M 8 8 H 28 V 25 H 35 V 40 H 43 V 52
+        H 51 V 94 H 67 V 52 H 75 V 40 H 83
+        V 25 H 90 V 8 H 70 V 25 H 63 V 40
+        H 55 V 25 H 48 V 8 Z
+      " />
+
+      <path d="
+        M 82 8 H 151 V 25 H 132 V 94
+        H 114 V 25 H 82 Z
+      " />
+
+      <path d="
+        M 151 8 H 204 V 25 H 212 V 55
+        H 204 V 64 H 169 V 94 H 151 Z
+
+        M 169 25 H 193 V 47 H 169 Z
+      " fillRule="evenodd" />
+
+      <path d="
+        M 216 8 H 234 V 25 H 242 V 40 H 250
+        V 25 H 258 V 8 H 276 V 94 H 258 V 42
+        H 250 V 58 H 242 V 42 H 234 V 94 H 216 Z
+      " />
+
+      <path d="
+        M 281 8 H 330 V 16 H 338 V 25 H 346
+        V 78 H 338 V 86 H 330 V 94 H 281 Z
+
+        M 299 25 V 77 H 321 V 69 H 328 V 33
+        H 321 V 25 Z
+      " fillRule="evenodd" />
+    </g>
+
+  </svg>
+</div>

@@ -1,0 +1,278 @@
+/* ==========================================================================
+   ytpMD — 1990s Minimalist Pixel Web Aesthetic
+   ========================================================================== */
+
+:root {
+  --bg-dark: #070b12;
+  --bg-card: #0c1320;
+  --bg-panel: #111a2c;
+  --teal-glow: #2dd4bf;
+  --teal-bright: #14b8a6;
+  --teal-dark: #0f766e;
+  --text-main: #e2e8f0;
+  --text-dim: #94a3b8;
+  --text-muted: #64748b;
+  --amber: #fbbf24;
+  --green: #4ade80;
+  --red: #f87171;
+  --border-pixel: 1px solid #1e293b;
+  --border-teal: 1px solid #14b8a6;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-dark);
+  background-image: 
+    linear-gradient(rgba(20, 184, 166, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 184, 166, 0.03) 1px, transparent 1px);
+  background-size: 16px 16px;
+  color: var(--text-main);
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 13.5px;
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 60px;
+}
+
+/* Container */
+.container {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+/* Pixel Typography */
+.pixel-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--teal-glow);
+  letter-spacing: -0.5px;
+}
+
+.pixel-sub {
+  font-family: 'VT323', monospace;
+  font-size: 20px;
+  color: var(--teal-bright);
+  letter-spacing: 1px;
+}
+
+.pixel-section-header {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 11px;
+  color: var(--teal-bright);
+  padding: 8px 12px;
+  background-color: var(--bg-card);
+  border-left: 4px solid var(--teal-bright);
+  border-bottom: 1px solid #1e293b;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Pixel Boxes & Panels */
+.pixel-box {
+  background-color: var(--bg-card);
+  border: 1px solid #1e293b;
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.pixel-box-teal {
+  border: 1px solid var(--teal-dark);
+}
+
+.pixel-box-header {
+  background-color: var(--bg-panel);
+  border-bottom: 1px solid #1e293b;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-family: 'Press Start 2P', monospace;
+  color: var(--teal-glow);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pixel-box-body {
+  padding: 16px;
+}
+
+/* Pixel Buttons */
+.pixel-btn {
+  font-family: 'Fira Code', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  background-color: transparent;
+  color: var(--teal-glow);
+  border: 1px solid var(--teal-bright);
+  cursor: pointer;
+  outline: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  transition: background-color 0.1s, color 0.1s;
+}
+
+.pixel-btn:hover {
+  background-color: var(--teal-bright);
+  color: #000000;
+  font-weight: bold;
+}
+
+.pixel-btn-active, .pixel-btn.active {
+  background-color: var(--teal-glow);
+  color: #000000;
+  border-color: var(--teal-glow);
+}
+
+.pixel-btn-amber {
+  color: var(--amber);
+  border-color: var(--amber);
+}
+
+.pixel-btn-amber:hover {
+  background-color: var(--amber);
+  color: #000000;
+}
+
+/* Minimalist Navigation Bar */
+.pixel-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 1px dashed #1e293b;
+  padding-bottom: 12px;
+}
+
+.pixel-nav-item {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  padding: 6px 10px;
+  color: var(--text-dim);
+  cursor: pointer;
+  border: 1px solid transparent;
+  user-select: none;
+}
+
+.pixel-nav-item:hover {
+  color: var(--teal-glow);
+  border: 1px dashed var(--teal-dark);
+}
+
+.pixel-nav-item.active {
+  color: #000000;
+  background-color: var(--teal-bright);
+  border: 1px solid var(--teal-glow);
+}
+
+/* Badges */
+.pixel-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #1e293b;
+  background-color: var(--bg-panel);
+  color: var(--teal-glow);
+  margin-right: 6px;
+  margin-bottom: 6px;
+}
+
+.pixel-badge-amber {
+  border-color: #78350f;
+  color: var(--amber);
+}
+
+.pixel-badge-green {
+  border-color: #064e3b;
+  color: var(--green);
+}
+
+/* Terminal Console */
+.pixel-term {
+  background-color: #04070d;
+  border: 1px solid #1e293b;
+  padding: 14px;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 12.5px;
+  color: #5eead4;
+  overflow-x: auto;
+  line-height: 1.4;
+}
+
+/* Pixel Tables */
+.pixel-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  margin-top: 8px;
+}
+
+.pixel-table th {
+  background-color: var(--bg-panel);
+  border: 1px solid #1e293b;
+  color: var(--teal-bright);
+  padding: 8px 12px;
+  text-align: left;
+  font-family: 'Fira Code', monospace;
+  font-size: 11.5px;
+  text-transform: uppercase;
+}
+
+.pixel-table td {
+  border: 1px solid #1e293b;
+  padding: 8px 12px;
+  background-color: var(--bg-card);
+}
+
+.pixel-table tr:hover td {
+  background-color: #0e1726;
+}
+
+/* Grid layout */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Blinking Cursor */
+.cursor-blink {
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Footer */
+.pixel-footer {
+  border-top: 1px dashed #1e293b;
+  margin-top: 40px;
+  padding-top: 16px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}

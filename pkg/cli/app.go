@@ -15,6 +15,7 @@ import (
 	"github.com/ytp24/ytpMD/pkg/batch"
 	"github.com/ytp24/ytpMD/pkg/core"
 	"github.com/ytp24/ytpMD/pkg/extractor"
+	"github.com/ytp24/ytpMD/pkg/mcp"
 	"github.com/ytp24/ytpMD/pkg/ui"
 	"github.com/ytp24/ytpMD/pkg/validator"
 )
@@ -73,6 +74,10 @@ func Run() {
 	case "interactive", "wizard":
 		runInteractiveMode(ctx)
 
+	case "mcp", "serve-mcp":
+		mcp.StartServer()
+		return
+
 	case "convert":
 		runConvert(ctx, os.Args[2:])
 
@@ -96,6 +101,7 @@ func printUsage() {
    %sytpmd%s                           Launch interactive wizard (single PDF or concurrent batch)
    %sytpmd convert <input.pdf>%s       Convert a single PDF file into a chapter-based notes folder
    %sytpmd batch <directory>%s         Batch convert all PDFs using concurrent Goroutines
+   %sytpmd mcp%s                       Launch Model Context Protocol (MCP) stdio server for IDEs
    %sytpmd help%s                      Show this help screen
    %sytpmd version%s                   Show version
 
@@ -124,6 +130,7 @@ func printUsage() {
    # Concurrent batch conversion into ~/Documents/ytpMD/CloudBooks/:
    ytpmd batch ~/Downloads/PDFs/ -name CloudBooks -concurrency 6 -force
 `, ui.Bold, ui.TealLight, ui.Reset,
+		ui.TealBright, ui.Reset,
 		ui.TealBright, ui.Reset,
 		ui.TealBright, ui.Reset,
 		ui.TealBright, ui.Reset,

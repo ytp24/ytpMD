@@ -1,0 +1,32 @@
+name: ytpmd
+base: core22
+version: '3.2.0'
+summary: High-Performance Concurrent PDF to Chapter Markdown Engine
+description: |
+  ytpMD [pdf2md] transforms monolithic PDF books and documentation into
+  clean, chapter-segmented Markdown notes with YAML frontmatter,
+  breadcrumb navigation, and AGENTS.md manifests for RAG pipelines.
+  Features an interactive terminal wizard, concurrent batch processor,
+  and native Model Context Protocol (MCP) server support.
+
+grade: stable
+confinement: classic
+
+apps:
+  ytpmd:
+    command: bin/ytpmd
+  ytpMD:
+    command: bin/ytpmd
+  pdf2md:
+    command: bin/ytpmd
+  ytpmd-mcp:
+    command: bin/ytpmd-mcp
+
+parts:
+  ytpmd:
+    plugin: go
+    source: .
+    build-packages:
+      - golang-go
+    stage-packages:
+      - poppler-utils

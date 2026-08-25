@@ -87,32 +87,60 @@ Alongside human-friendly `README.md`, an `AGENTS.md` file is automatically gener
 
 ---
 
-## 📦 Installation
+## 📦 Instant Installation
 
-### 🐧 Linux (Debian / Ubuntu `.deb`)
+### ⚡ One-Line Terminal Installer (`curl` or `wget`)
 ```bash
-# Download and install the official .deb package without warnings:
-sudo apt install ./dist/ytpmd_3.2.0_amd64.deb
-```
-*Or use the one-line Unix installer script:*
-```bash
-./scripts/install.sh
+# Using curl:
+curl -fsSL https://raw.githubusercontent.com/ytp24/ytpMD/main/scripts/install.sh | bash
+
+# Using wget:
+wget -qO- https://raw.githubusercontent.com/ytp24/ytpMD/main/scripts/install.sh | bash
 ```
 
 ### 🪟 Windows (Native PowerShell)
-Run the automated PowerShell installer:
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
+irm https://raw.githubusercontent.com/ytp24/ytpMD/main/scripts/install.ps1 | iex
 ```
-*Features on Windows:*
-- Uses native PowerShell `.NET` `OpenFileDialog` & `FolderBrowserDialog`.
-- Automatically installs to `%LOCALAPPDATA%\ytpMD\bin` and registers into your User `PATH`.
 
-### 🍏 macOS / Homebrew
+### 🛒 Linux Package Marketplaces & Package Managers
 ```bash
-brew install poppler
-go install github.com/ytp24/ytpMD/cmd/ytpMD@latest
+# Canonical Snap Store (Ubuntu, Debian, Fedora, Arch):
+sudo snap install ytpmd --classic
+
+# macOS / Linux Homebrew:
+brew tap ytp24/tap
+brew install ytpmd
+
+# Arch Linux (AUR):
+yay -S ytpmd-bin
+
+# Debian / Ubuntu (.deb package):
+sudo apt install ./dist/ytpmd_3.2.0_amd64.deb
 ```
+
+---
+
+## 🤖 Model Context Protocol (MCP) Server
+
+`ytpMD` natively integrates an MCP stdio server to let AI agents in **Cursor**, **Claude Desktop**, **Google Antigravity**, and **VS Code** convert and inspect documentation automatically:
+
+```bash
+ytpmd mcp
+```
+
+Add to your `.cursor/mcp.json` or `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "ytpmd": {
+      "command": "ytpmd",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+*See complete instructions and schemas in [`MCP.md`](./MCP.md).*
 
 ---
 
@@ -120,7 +148,7 @@ go install github.com/ytp24/ytpMD/cmd/ytpMD@latest
 
 ### 1. Interactive Wizard
 ```bash
-ytpMD
+ytpmd
 ```
 
 ### 2. Single Document Conversion
@@ -143,19 +171,28 @@ ytpmd batch ~/Downloads/PDFs/ -name CloudLibrary -concurrency 4 -r
 
 ---
 
-## 🌿 Git Branching & Release Strategy
+## 🌐 Showcase Website & Web App
 
-This repository follows a structured branch workflow:
+A retro Windows 95 + Teal styled showcase application is located in `web/` and configured for **Firebase Hosting** deployment:
+- Live terminal simulation
+- Package download matrix with SHA256 checksums
+- One-click MCP configuration generator
+- Interactive documentation
 
-- **`main`**: Production branch containing verified, official releases.
-- **`develop`**: Active integration branch for new features and tests.
-- **`v*.*.*` Tags**: Trigger the automated GitHub Actions release pipeline, cross-compiling release binaries for Linux, Windows, and macOS with SHA256 checksums.
+To run locally:
+```bash
+cd web
+npm install
+npm run dev
+```
 
 ---
 
 ## 📄 License & Legal
 
-- **License**: [Apache License 2.0](./LICENSE)
-- **Author**: `ytp24 <ykinwork24@gmail.com>`
+- **White Paper**: Complete architectural due-diligence review in [`WHITEPAPER.md`](./WHITEPAPER.md).
+- **License**: [Apache License 2.0](./LICENSE).
+- **Author**: `ytp24 <ykinwork24@gmail.com>`.
 - **Privacy & Telemetry**: 100% Local-First with **Zero Telemetry**. See [`LEGAL.md`](./LEGAL.md).
 - **Security Policy**: See [`SECURITY.md`](./SECURITY.md).
+

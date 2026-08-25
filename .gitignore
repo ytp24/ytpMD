@@ -1,2 +1,26 @@
+# Binaries & Distribution
 bin/
 dist/
+*.exe
+*.deb
+*.tar.gz
+*.zip
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Node / Web dependencies & builds
+node_modules/
+web/dist/
+web/node_modules/
+.firebase/
+
+# OS & Logs
+.DS_Store
+*.log
+/tmp/ytp*
+supabase/.temp/
