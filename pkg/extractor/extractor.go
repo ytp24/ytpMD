@@ -1,0 +1,278 @@
+package extractor
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/devops/pdf2md/pkg/filter"
+	"github.com/devops/pdf2md/pkg/models"
+	"github.com/devops/pdf2md/pkg/splitter"
+	"github.com/devops/pdf2md/pkg/transformer"
+	"github.com/devops/pdf2md/pkg/validator"
+)
+
+type PDFExtractor struct {
+	config      models.Config
+	filter      *filter.ContentFilter
+	transformer *transformer.Transformer
+	splitter    *splitter.Splitter
+}
+
+func NewPDFExtractor(cfg models.Config) *PDFExtractor {
+	return &PDFExtractor{
+		config:      cfg,
+		filter:      filter.NewContentFilter(cfg),
+		transformer: transformer.NewTransformer(cfg),
+		splitter:    splitter.NewSplitter(cfg),
+	}
+}
+
+// ExtractToDirectory extracts all chapters as individual markdown files inside a directory named after the PDF.
+func (e *PDFExtractor) ExtractToDirectory(pdfPath string, targetBaseDir string) (result *models.SplitResult, finalErr error) {
+	// Defensive panic recovery
+	defer func() {
+		if r := recover(); r != nil {
+			finalErr = fmt.Errorf("internal processing error: %v", r)
+		}
+	}()
+
+	absPath := validator.ExpandPath(pdfPath)
+	if err := validator.ValidatePDFFile(absPath); err != nil {
+		return nil, err
+	}
+
+	cleanBaseDir := validator.ExpandPath(targetBaseDir)
+	if err := validator.ValidateDirectory(cleanBaseDir); err != nil {
+		return nil, err
+	}
+
+	pdfBaseName := strings.TrimSuffix(filepath.Base(absPath), filepath.Ext(absPath))
+	targetDir := filepath.Join(cleanBaseDir, pdfBaseName)
+
+	totalPages, _ := e.getPageCount(absPath)
+	if totalPages <= 0 {
+		totalPages = 1
+	}
+
+	pages, err := e.extractPages(absPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(pages) == 0 {
+		return nil, fmt.Errorf("no content could be extracted from '%s'", filepath.Base(absPath))
+	}
+
+	var processedPages []models.PDFPage
+	processedCount := 0
+	totalCharsExtracted := 0
+
+	for i := range pages {
+		page := &pages[i]
+
+		// Skip front matter pages
+		if page.PageNumber <= e.config.SkipFrontMatterPages {
+			page.IsFilteredOut = true
+			page.FilterReason = fmt.Sprintf("Skipped front matter page <= %d", e.config.SkipFrontMatterPages)
+			continue
+		}
+
+		// Page range bounds
+		if page.PageNumber < e.config.StartPage {
+			page.IsFilteredOut = true
+			continue
+		}
+		if e.config.EndPage > 0 && page.PageNumber > e.config.EndPage {
+			page.IsFilteredOut = true
+			break
+		}
+
+		// Appendix / Index stop filter
+		if shouldStop, reason := e.filter.ShouldStop(page.RawText); shouldStop {
+			page.IsFilteredOut = true
+			page.FilterReason = reason
+			break // Cease further page extractions
+		}
+
+		// Clean lines
+		page.Lines = e.filter.CleanPageLines(page.RawText)
+		for _, l := range page.Lines {
+			totalCharsExtracted += len(strings.TrimSpace(l))
+		}
+
+		processedPages = append(processedPages, *page)
+		processedCount++
+	}
+
+	if totalCharsExtracted < 10 {
+		return nil, fmt.Errorf("PDF contains no readable text layers (likely an image-only scanned document). OCR preprocessing is required.")
+	}
+
+	// Split into chapters
+	chapters := e.splitter.SplitIntoChapters(processedPages, pdfBaseName)
+	tocIndex := e.splitter.GenerateTOCIndex(pdfBaseName, chapters, totalPages)
+
+	// Ensure destination folder exists
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create directory %s: %w", targetDir, err)
+	}
+
+	// Write individual chapter .md files
+	for _, ch := range chapters {
+		chPath := filepath.Join(targetDir, ch.Filename)
+		if err := os.WriteFile(chPath, []byte(ch.Content), 0644); err != nil {
+			return nil, fmt.Errorf("failed to write chapter file %s: %w", chPath, err)
+		}
+	}
+
+	// Write master README.md (Table of Contents)
+	readmePath := filepath.Join(targetDir, "README.md")
+	if err := os.WriteFile(readmePath, []byte(tocIndex), 0644); err != nil {
+		return nil, fmt.Errorf("failed to write README.md: %w", err)
+	}
+
+	return &models.SplitResult{
+		SourcePDF:       absPath,
+		PDFName:         pdfBaseName,
+		TargetDirectory: targetDir,
+		TOCContent:      tocIndex,
+		Chapters:        chapters,
+		TotalPages:      totalPages,
+		ProcessedPages:  processedCount,
+		SkippedPages:    totalPages - processedCount,
+	}, nil
+}
+
+// ExtractFile processes a single PDF file and returns a single concatenated markdown document.
+func (e *PDFExtractor) ExtractFile(pdfPath string) (doc *models.ProcessedDocument, finalErr error) {
+	defer func() {
+		if r := recover(); r != nil {
+			finalErr = fmt.Errorf("internal processing error: %v", r)
+		}
+	}()
+
+	absPath := validator.ExpandPath(pdfPath)
+	if err := validator.ValidatePDFFile(absPath); err != nil {
+		return nil, err
+	}
+
+	totalPages, _ := e.getPageCount(absPath)
+	if totalPages <= 0 {
+		totalPages = 1
+	}
+
+	pages, err := e.extractPages(absPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var cleanedPagesLines [][]string
+	processedCount := 0
+
+	for _, page := range pages {
+		if page.PageNumber <= e.config.SkipFrontMatterPages {
+			continue
+		}
+		if page.PageNumber < e.config.StartPage {
+			continue
+		}
+		if e.config.EndPage > 0 && page.PageNumber > e.config.EndPage {
+			break
+		}
+		if shouldStop, _ := e.filter.ShouldStop(page.RawText); shouldStop {
+			break
+		}
+
+		lines := e.filter.CleanPageLines(page.RawText)
+		cleanedPagesLines = append(cleanedPagesLines, lines)
+		processedCount++
+	}
+
+	markdownContent := e.transformer.Transform(cleanedPagesLines)
+
+	return &models.ProcessedDocument{
+		SourcePath:      absPath,
+		TotalPages:      totalPages,
+		ProcessedPages:  processedCount,
+		SkippedPages:    totalPages - processedCount,
+		MarkdownContent: markdownContent,
+	}, nil
+}
+
+func (e *PDFExtractor) getPageCount(pdfPath string) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "pdfinfo", pdfPath)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+
+	if err := cmd.Run(); err == nil {
+		lines := strings.Split(out.String(), "\n")
+		for _, line := range lines {
+			if strings.HasPrefix(strings.ToLower(line), "pages:") {
+				parts := strings.Split(line, ":")
+				if len(parts) == 2 {
+					if count, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
+						return count, nil
+					}
+				}
+			}
+		}
+	}
+
+	pages, err := e.extractPages(pdfPath)
+	if err == nil && len(pages) > 0 {
+		return len(pages), nil
+	}
+
+	return 1, nil
+}
+
+func (e *PDFExtractor) extractPages(pdfPath string) ([]models.PDFPage, error) {
+	if err := validator.CheckDependencies(); err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "pdftotext", "-layout", pdfPath, "-")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		errMsg := strings.ToLower(stderr.String())
+		if strings.Contains(errMsg, "encrypted") || strings.Contains(errMsg, "password") {
+			return nil, fmt.Errorf("PDF is encrypted or password-protected: %s", filepath.Base(pdfPath))
+		}
+		if strings.Contains(errMsg, "syntax error") || strings.Contains(errMsg, "corrupt") {
+			return nil, fmt.Errorf("PDF file appears to be corrupted or invalid: %s", filepath.Base(pdfPath))
+		}
+		return nil, fmt.Errorf("failed to process PDF: %s (%s)", err, strings.TrimSpace(stderr.String()))
+	}
+
+	rawPages := strings.Split(stdout.String(), "\x0c") // 0x0C = Form Feed
+	var pages []models.PDFPage
+
+	for idx, text := range rawPages {
+		trimmed := strings.TrimSpace(text)
+		if idx == len(rawPages)-1 && trimmed == "" {
+			continue
+		}
+		pages = append(pages, models.PDFPage{
+			PageNumber: idx + 1,
+			RawText:    text,
+		})
+	}
+
+	return pages, nil
+}
