@@ -1,0 +1,11 @@
+Package: ytp24
+Version: 3.1.0
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends: poppler-utils
+Maintainer: ytp24 <ykinwork24@gmail.com>
+Description: High-performance concurrent PDF to chapter-aware Markdown converter.
+ ytpMD [pdf2md] transforms PDF documents into clean, structured GitHub-Flavored
+ Markdown notes grouped by chapter with zero noise, automatically excluding
+ appendix and non-usable sections.
