@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/devops/pdf2md/pkg/extractor"
 	"github.com/devops/pdf2md/pkg/models"
@@ -15,19 +16,21 @@ import (
 	"github.com/devops/pdf2md/pkg/validator"
 )
 
-const version = "2.2.0"
+const version = "3.0.0"
 
 func printUsage() {
 	ui.PrintBanner(version)
 	fmt.Printf(`%s%sUSAGE:%s
-   %spdf2md%s                          Launch interactive wizard (prompts for file, dest & settings)
+   %spdf2md%s                          Launch interactive wizard (single PDF or concurrent batch)
    %spdf2md convert <input.pdf>%s      Convert a single PDF file
-   %spdf2md batch <directory>%s        Batch convert all PDFs in a directory
+   %spdf2md batch <directory>%s        Batch convert all PDFs using concurrent Goroutines
    %spdf2md help%s                     Show this help screen
    %spdf2md version%s                  Show version
 
 %s%sOPTIONS (for non-interactive CLI flags):%s
-   -o, -output <path>              Destination folder (default: alongside PDF)
+   -o, -output <path>              Destination root folder (default: ~/Documents/ytp24)
+   -name <batch_name>              Subfolder name for batch storage (default: input folder name)
+   -concurrency <N>                Number of parallel worker goroutines (default: 4)
    -skip-front <N>                 Skip first N pages (covers, copyright, TOC) (default: 0)
    -start-page <N>                 Start page number (default: 1)
    -end-page <N>                   End page number (default: 0 / until end)
@@ -36,14 +39,14 @@ func printUsage() {
    -r, -recursive                  Recursively search subdirectories in batch mode
 
 %s%sEXAMPLES:%s
-   # Interactive mode (prompts with smart defaults):
-   pdf2md
+   # Interactive mode (launches wizard with file/folder chooser):
+   ytp24
 
-   # Direct conversion into a named chapter folder:
-   pdf2md convert DevOps_Handbook.pdf -skip-front 3
+   # Convert single PDF into ~/Documents/ytp24/DevOps_Handbook/:
+   ytp24 convert DevOps_Handbook.pdf
 
-   # Batch process an entire directory:
-   pdf2md batch ~/Downloads/PDFs/ -o ~/Projects/Notes/ -r
+   # Concurrent batch conversion into ~/Documents/ytp24/CloudBooks/:
+   ytp24 batch ~/Downloads/PDFs/ -name CloudBooks -concurrency 6
 `, ui.Bold, ui.TealLight, ui.Reset,
 		ui.TealBright, ui.Reset,
 		ui.TealBright, ui.Reset,
@@ -56,7 +59,7 @@ func printUsage() {
 }
 
 func main() {
-	// 1. Global Panic Recovery Handler: Never crash or panic
+	// 1. Global Panic Recovery Handler
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println()
@@ -132,9 +135,32 @@ func runInteractiveMode() {
 	cfg.ExcludeAppendix = opts.ExcludeAppendix
 	cfg.StartPage = opts.StartPage
 	cfg.EndPage = opts.EndPage
+	cfg.Concurrency = opts.Concurrency
 
 	ext := extractor.NewPDFExtractor(cfg)
 
+	if opts.Mode == ui.ModeBatch {
+		// Concurrent Batch Mode
+		pdfFiles, err := findPDFFiles(opts.BatchDir, true)
+		if err != nil || len(pdfFiles) == 0 {
+			fmt.Printf("%s[!] No PDF documents found in '%s'%s\n", ui.ColorYellow, opts.BatchDir, ui.Reset)
+			return
+		}
+
+		fmt.Printf("%s[*] Launching concurrent batch engine (%d workers) for %d PDF(s)...%s\n\n",
+			ui.TealLight, opts.Concurrency, len(pdfFiles), ui.Reset)
+
+		res, err := ext.ProcessBatchConcurrently(pdfFiles, opts.DestinationDir, opts.BatchName, opts.Concurrency)
+		if err != nil {
+			fmt.Printf("%s[x] Batch execution error:%s %v\n", ui.ColorRed, ui.Reset, err)
+			os.Exit(1)
+		}
+
+		printBatchSummary(res)
+		return
+	}
+
+	// Single PDF Mode
 	fmt.Printf("%s%s[*] Extracting and transforming:%s %s...\n", ui.TealLight, ui.Bold, ui.Reset, filepath.Base(opts.PDFPath))
 
 	if !opts.SplitByChapters {
@@ -183,8 +209,8 @@ func runConvert(args []string) {
 		noReflow     bool
 	)
 
-	fs.StringVar(&outputDir, "o", "", "Destination base directory")
-	fs.StringVar(&outputDir, "output", "", "Destination base directory")
+	fs.StringVar(&outputDir, "o", ui.DefaultDestinationRoot, "Destination root directory")
+	fs.StringVar(&outputDir, "output", ui.DefaultDestinationRoot, "Destination root directory")
 	fs.IntVar(&skipFront, "skip-front", 0, "Skip first N pages")
 	fs.IntVar(&startPage, "start-page", 1, "Start page number")
 	fs.IntVar(&endPage, "end-page", 0, "End page number")
@@ -207,13 +233,8 @@ func runConvert(args []string) {
 		os.Exit(1)
 	}
 
-	if outputDir == "" {
-		outputDir = filepath.Dir(inputPdf)
-	} else {
-		outputDir = validator.ExpandPath(outputDir)
-	}
-
-	if err := validator.ValidateDirectory(outputDir); err != nil {
+	destDir := validator.ExpandPath(outputDir)
+	if err := validator.ValidateDirectory(destDir); err != nil {
 		fmt.Printf("%s[x] %v%s\n", ui.ColorRed, err, ui.Reset)
 		os.Exit(1)
 	}
@@ -235,7 +256,7 @@ func runConvert(args []string) {
 			fmt.Printf("%s[x] Extraction failed:%s %v\n", ui.ColorRed, ui.Reset, err)
 			os.Exit(1)
 		}
-		targetFile := filepath.Join(outputDir, strings.TrimSuffix(filepath.Base(inputPdf), filepath.Ext(inputPdf))+".md")
+		targetFile := filepath.Join(destDir, strings.TrimSuffix(filepath.Base(inputPdf), filepath.Ext(inputPdf))+".md")
 		if err := os.WriteFile(targetFile, []byte(doc.MarkdownContent), 0644); err != nil {
 			fmt.Printf("%s[x] Failed to save file:%s %v\n", ui.ColorRed, ui.Reset, err)
 			os.Exit(1)
@@ -244,7 +265,7 @@ func runConvert(args []string) {
 		return
 	}
 
-	result, err := ext.ExtractToDirectory(inputPdf, outputDir)
+	result, err := ext.ExtractToDirectory(inputPdf, destDir)
 	if err != nil {
 		fmt.Printf("%s[x] Extraction failed:%s %v\n", ui.ColorRed, ui.Reset, err)
 		os.Exit(1)
@@ -265,13 +286,17 @@ func runBatch(args []string) {
 
 	var (
 		outputDir    string
+		batchName    string
+		concurrency  int
 		skipFront    int
 		keepAppendix bool
 		recursive    bool
 	)
 
-	fs.StringVar(&outputDir, "o", "", "Destination directory")
-	fs.StringVar(&outputDir, "output", "", "Destination directory")
+	fs.StringVar(&outputDir, "o", ui.DefaultDestinationRoot, "Base destination root")
+	fs.StringVar(&outputDir, "output", ui.DefaultDestinationRoot, "Base destination root")
+	fs.StringVar(&batchName, "name", "", "Batch subfolder name (default: input directory name)")
+	fs.IntVar(&concurrency, "concurrency", 4, "Number of concurrent worker goroutines")
 	fs.IntVar(&skipFront, "skip-front", 0, "Skip first N pages on all files")
 	fs.BoolVar(&keepAppendix, "keep-appendix", false, "Keep appendix and index")
 	fs.BoolVar(&recursive, "r", false, "Recursive search")
@@ -282,69 +307,82 @@ func runBatch(args []string) {
 	positional := fs.Args()
 	if len(positional) < 1 {
 		fmt.Printf("%s[x] Error: missing input directory.%s\n", ui.ColorRed, ui.Reset)
-		fmt.Println("Usage: pdf2md batch <directory> [-o <output_dir>] [-r]")
+		fmt.Println("Usage: pdf2md batch <directory> [-name <batch_name>] [-o <output_dir>] [-concurrency <N>]")
 		os.Exit(1)
 	}
 
 	inputDir := validator.ExpandPath(positional[0])
-	if outputDir == "" {
-		outputDir = inputDir
-	} else {
-		outputDir = validator.ExpandPath(outputDir)
+	destRoot := validator.ExpandPath(outputDir)
+
+	if batchName == "" {
+		batchName = filepath.Base(inputDir)
 	}
 
-	if err := validator.ValidateDirectory(outputDir); err != nil {
+	if err := validator.ValidateDirectory(destRoot); err != nil {
 		fmt.Printf("%s[x] %v%s\n", ui.ColorRed, err, ui.Reset)
 		os.Exit(1)
+	}
+
+	pdfFiles, err := findPDFFiles(inputDir, recursive)
+	if err != nil || len(pdfFiles) == 0 {
+		fmt.Printf("%s[!] No PDF files found in '%s'%s\n", ui.ColorYellow, inputDir, ui.Reset)
+		return
 	}
 
 	cfg := models.DefaultConfig()
 	cfg.SkipFrontMatterPages = skipFront
 	cfg.ExcludeAppendix = !keepAppendix
+	cfg.Concurrency = concurrency
 
 	ext := extractor.NewPDFExtractor(cfg)
 
+	fmt.Printf("%s[*] Launching concurrent batch engine (%d workers) for %d PDF(s)...%s\n\n",
+		ui.TealLight, concurrency, len(pdfFiles), ui.Reset)
+
+	result, err := ext.ProcessBatchConcurrently(pdfFiles, destRoot, batchName, concurrency)
+	if err != nil {
+		fmt.Printf("%s[x] Batch execution failed:%s %v\n", ui.ColorRed, ui.Reset, err)
+		os.Exit(1)
+	}
+
+	printBatchSummary(result)
+}
+
+func findPDFFiles(dir string, recursive bool) ([]string, error) {
 	var pdfFiles []string
 	if recursive {
-		_ = filepath.Walk(inputDir, func(path string, info os.FileInfo, err error) error {
+		_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 			if err == nil && !info.IsDir() && strings.HasSuffix(strings.ToLower(path), ".pdf") {
 				pdfFiles = append(pdfFiles, path)
 			}
 			return nil
 		})
 	} else {
-		entries, err := os.ReadDir(inputDir)
+		entries, err := os.ReadDir(dir)
 		if err != nil {
-			fmt.Printf("%s[x] Error reading directory:%s %v\n", ui.ColorRed, ui.Reset, err)
-			os.Exit(1)
+			return nil, err
 		}
 		for _, entry := range entries {
 			if !entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".pdf") {
-				pdfFiles = append(pdfFiles, filepath.Join(inputDir, entry.Name()))
+				pdfFiles = append(pdfFiles, filepath.Join(dir, entry.Name()))
 			}
 		}
 	}
+	return pdfFiles, nil
+}
 
-	if len(pdfFiles) == 0 {
-		fmt.Printf("%s[!] No PDF files found in '%s'%s\n", ui.ColorYellow, inputDir, ui.Reset)
-		return
-	}
-
-	fmt.Printf("%s[*] Found %d PDF file(s) in %s%s\n", ui.TealLight, len(pdfFiles), inputDir, ui.Reset)
-
-	successCount := 0
-	for _, pdf := range pdfFiles {
-		fmt.Printf("\n[*] Converting %s...\n", filepath.Base(pdf))
-		res, err := ext.ExtractToDirectory(pdf, outputDir)
-		if err != nil {
-			fmt.Printf("   %s[x] Failed:%s %v\n", ui.ColorRed, ui.Reset, err)
-			continue
+func printBatchSummary(res *models.BatchResult) {
+	fmt.Println()
+	fmt.Printf("%s%s[+] Batch Processing Completed in %s%s\n", ui.TealBright, ui.Bold, res.Duration.Round(time.Millisecond), ui.Reset)
+	fmt.Printf("   [-] %sBatch Directory:%s  %s%s/%s\n", ui.Bold, ui.Reset, ui.TealLight, res.TargetDirectory, ui.Reset)
+	fmt.Printf("   [-] %sMaster Library:%s   %s/README.md\n", ui.Bold, ui.Reset, res.TargetDirectory)
+	fmt.Printf("   [-] %sTotal Files:   %s   %d converted | %d failed\n", ui.Bold, ui.Reset, res.ProcessedFiles, res.FailedFiles)
+	for _, r := range res.Results {
+		if r.Success {
+			fmt.Printf("       + %s %s(%d chapters, %d pages)%s\n", r.PDFName, ui.ColorGray, r.ChaptersCount, r.TotalPages, ui.Reset)
+		} else {
+			fmt.Printf("       x %s %s(failed: %v)%s\n", r.PDFName, ui.ColorRed, r.Error, ui.Reset)
 		}
-
-		fmt.Printf("   %s[+] Created folder:%s %s/ (%d chapters)\n", ui.TealBright, ui.Reset, filepath.Base(res.TargetDirectory), len(res.Chapters))
-		successCount++
 	}
-
-	fmt.Printf("\n%s[+] Batch processing complete! %d/%d PDF documents converted into chapter folders.%s\nBase destination: %s\n",
-		ui.TealBright, successCount, len(pdfFiles), ui.Reset, outputDir)
+	fmt.Println()
 }

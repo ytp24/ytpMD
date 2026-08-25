@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -34,21 +35,32 @@ const (
 // DefaultDestinationRoot is the standard base output folder for all extracted notes.
 const DefaultDestinationRoot = "~/Documents/ytp24"
 
+// ProcessingMode defines single file or batch processing.
+type ProcessingMode int
+
+const (
+	ModeSingle ProcessingMode = iota
+	ModeBatch
+)
+
 // InteractiveOptions holds user-selected parameters from the interactive wizard.
 type InteractiveOptions struct {
+	Mode            ProcessingMode
 	PDFPath         string
+	BatchDir        string
+	BatchName       string
 	DestinationDir  string
 	SkipFrontMatter int
 	ExcludeAppendix bool
 	SplitByChapters bool
 	StartPage       int
 	EndPage         int
+	Concurrency     int
 }
 
 // PrintBanner renders the big italic painted teal ASCII ytpMD logo with [pdf2md] underneath.
 func PrintBanner(version string) {
 	fmt.Println()
-	// Big Italic Painted ASCII Art with Teal Gradient
 	fmt.Printf("%s%s%s  ██╗   ██╗████████╗██████╗ ███╗   ███╗██████╗ %s\n", TealDeep, Bold, Italic, Reset)
 	fmt.Printf("%s%s%s  ╚██╗ ██╔╝╚══██╔══╝██╔══██╗████╗ ████║██╔══██╗%s\n", TealMed, Bold, Italic, Reset)
 	fmt.Printf("%s%s%s   ╚████╔╝    ██║   ██████╔╝██╔████╔██║██║  ██║%s\n", TealMed, Bold, Italic, Reset)
@@ -56,9 +68,8 @@ func PrintBanner(version string) {
 	fmt.Printf("%s%s%s     ██║      ██║   ██║     ██║ ╚═╝ ██║██████╔╝%s\n", TealLight, Bold, Italic, Reset)
 	fmt.Printf("%s%s%s     ╚═╝      ╚═╝   ╚═╝     ╚═╝     ╚═╝╚═════╝ %s\n", TealPale, Bold, Italic, Reset)
 
-	// Centered Subtitle [pdf2md] in Italic Teal
 	fmt.Printf("               %s%s%s[ pdf2md ]%s  %s%sv%s%s\n", TealLight, Bold, Italic, Reset, ColorGray, Italic, version, Reset)
-	fmt.Printf("   %s%s-- High-Performance PDF to Markdown Engine --%s\n", TealBright, Italic, Reset)
+	fmt.Printf("   %s%s-- High-Performance Concurrent PDF to Markdown Engine --%s\n", TealBright, Italic, Reset)
 	fmt.Printf("   %s%sTransforms PDFs into Chapter-Aware Markdown Notes with Zero Noise%s\n", ColorGray, Italic, Reset)
 	fmt.Println()
 }
@@ -106,11 +117,53 @@ func PromptPDFFile(reader *bufio.Reader) (string, error) {
 	}
 }
 
+// PromptBatchDir interactively requests batch directory, opening a GUI folder chooser if Enter is pressed on empty input.
+func PromptBatchDir(reader *bufio.Reader) (string, error) {
+	for {
+		fmt.Printf("%s%s%s[?]%s %s%sEnter Batch PDF directory path%s %s[or press Enter to open folder picker]%s: ",
+			TealLight, Bold, Italic, Reset, TealBright, Italic, Reset, ColorGray, Reset)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return "", fmt.Errorf("input stream closed")
+		}
+
+		trimmed := strings.TrimSpace(input)
+		trimmed = strings.Trim(trimmed, "\"'")
+
+		if trimmed == "" {
+			fmt.Printf("%s[*] Opening directory selection window...%s\n", TealLight, Reset)
+			selected, err := OpenDirectoryPicker("Select PDF Batch Directory", "")
+			if err == nil && selected != "" {
+				cleanSelected := validator.ExpandPath(selected)
+				if err := validator.ValidateDirectory(cleanSelected); err == nil {
+					fmt.Printf("%s[+] Selected directory: %s%s\n", TealBright, cleanSelected, Reset)
+					return cleanSelected, nil
+				} else {
+					fmt.Printf("%s[x] %v%s\n", ColorRed, err, Reset)
+				}
+			} else {
+				fmt.Printf("%s[!] Directory selection cancelled.%s\n", ColorYellow, Reset)
+			}
+			fmt.Printf("%sPlease type or paste the directory path:%s ", ColorGray, Reset)
+			continue
+		}
+
+		cleanPath := validator.ExpandPath(trimmed)
+		if err := validator.ValidateDirectory(cleanPath); err != nil {
+			fmt.Printf("%s[x] %v%s\n", ColorRed, err, Reset)
+			fmt.Printf("%sPlease try again.%s\n", ColorGray, Reset)
+			continue
+		}
+
+		return cleanPath, nil
+	}
+}
+
 // PromptDestinationDir requests destination folder, defaulting to ~/Documents/ytp24.
 func PromptDestinationDir(reader *bufio.Reader, defaultDir string) (string, error) {
 	defaultExpanded := validator.ExpandPath(defaultDir)
 	for {
-		fmt.Printf("%s%s%s[?]%s %s%sEnter destination directory%s %s[%s, or 'b' to browse]%s: ",
+		fmt.Printf("%s%s%s[?]%s %s%sEnter destination root%s %s[%s, or 'b' to browse]%s: ",
 			TealLight, Bold, Italic, Reset, TealBright, Italic, Reset, ColorGray, defaultDir, Reset)
 		input, err := reader.ReadString('\n')
 		if err != nil {
@@ -121,13 +174,12 @@ func PromptDestinationDir(reader *bufio.Reader, defaultDir string) (string, erro
 		trimmed := strings.TrimSpace(input)
 		trimmed = strings.Trim(trimmed, "\"'")
 
-		// Default to ~/Documents/ytp24 on Enter
+		// Default on Enter
 		if trimmed == "" {
 			_ = os.MkdirAll(defaultExpanded, 0755)
 			return defaultExpanded, nil
 		}
 
-		// User entered 'b' or 'browse' -> Launch GUI Directory Chooser Window
 		if strings.ToLower(trimmed) == "b" || strings.ToLower(trimmed) == "browse" {
 			fmt.Printf("%s[*] Opening directory selection window...%s\n", TealLight, Reset)
 			selected, err := OpenDirectoryPicker("Select Destination Directory", defaultExpanded)
@@ -156,6 +208,20 @@ func PromptDestinationDir(reader *bufio.Reader, defaultDir string) (string, erro
 
 		return cleanPath, nil
 	}
+}
+
+// PromptString prompts for a generic string with a default value.
+func PromptString(reader *bufio.Reader, label string, defaultVal string) string {
+	fmt.Printf("%s%s%s[?]%s %s%s%s%s %s[%s]%s: ", TealLight, Bold, Italic, Reset, TealBright, Italic, label, Reset, ColorGray, defaultVal, Reset)
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		return defaultVal
+	}
+	trimmed := strings.TrimSpace(input)
+	if trimmed == "" {
+		return defaultVal
+	}
+	return trimmed
 }
 
 // PromptInt prompts for an integer with a default fallback.
@@ -218,25 +284,77 @@ func RunInteractiveWizard(version string) (*InteractiveOptions, error) {
 
 	reader := bufio.NewReader(os.Stdin)
 
-	// 1. Ask for input PDF file (Pressing Enter launches file chooser window)
+	// Mode Selection: Single PDF or Batch Folder
+	fmt.Printf("%s%s%s[?]%s %sSelect Mode:%s\n", TealLight, Bold, Italic, Reset, TealBright, Reset)
+	fmt.Printf("    %s1.%s Single PDF File %s(default)%s\n", TealBright, Reset, ColorGray, Reset)
+	fmt.Printf("    %s2.%s Batch Directory of PDFs %s(Concurrent Goroutines)%s\n", TealBright, Reset, ColorGray, Reset)
+	fmt.Printf("%s%sChoice [1]:%s ", TealLight, Bold, Reset)
+	
+	modeInput, _ := reader.ReadString('\n')
+	modeChoice := strings.TrimSpace(modeInput)
+
+	if modeChoice == "2" {
+		// Batch Mode
+		batchDir, err := PromptBatchDir(reader)
+		if err != nil {
+			return nil, err
+		}
+
+		defaultBatchName := filepath.Base(batchDir)
+		batchName := PromptString(reader, "Batch name for storage subfolder", defaultBatchName)
+		destDir, err := PromptDestinationDir(reader, DefaultDestinationRoot)
+		if err != nil {
+			return nil, err
+		}
+
+		useDefaults := PromptBool(reader, "Use standard production defaults (TOC chapters -> Appendix cutoff)?", true)
+
+		skipFront := 0
+		excludeAppendix := true
+		splitChapters := true
+		concurrency := 4
+
+		if !useDefaults {
+			fmt.Println()
+			fmt.Printf("%s%s--- Advanced Batch Settings ---%s\n", TealBright, Italic, Reset)
+			skipFront = PromptInt(reader, "Skip initial front-matter pages on each PDF", 0, 0)
+			excludeAppendix = PromptBool(reader, "Automatically exclude Appendix, Index, & Bibliography?", true)
+			concurrency = PromptInt(reader, "Concurrent Worker Goroutines", 4, 1)
+		}
+
+		fmt.Println()
+		fmt.Printf("%s%s[+] Batch configured: ~/Documents/ytp24/%s/%s\n\n", TealBright, Bold, batchName, Reset)
+
+		return &InteractiveOptions{
+			Mode:            ModeBatch,
+			BatchDir:        batchDir,
+			BatchName:       batchName,
+			DestinationDir:  destDir,
+			SkipFrontMatter: skipFront,
+			ExcludeAppendix: excludeAppendix,
+			SplitByChapters: splitChapters,
+			Concurrency:     concurrency,
+		}, nil
+	}
+
+	// Single PDF Mode (Default)
 	pdfPath, err := PromptPDFFile(reader)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Ask for destination directory (Default: ~/Documents/ytp24)
 	destDir, err := PromptDestinationDir(reader, DefaultDestinationRoot)
 	if err != nil {
 		return nil, err
 	}
 
-	// 3. Ask whether to apply standard production defaults
 	useDefaults := PromptBool(reader, "Use standard production defaults (TOC chapters -> Appendix cutoff)?", true)
 
 	if useDefaults {
 		fmt.Println()
 		fmt.Printf("%s%s[+] Applying production defaults (TOC chapters extracted, Appendix/Index excluded).%s\n\n", TealBright, Bold, Reset)
 		return &InteractiveOptions{
+			Mode:            ModeSingle,
 			PDFPath:         pdfPath,
 			DestinationDir:  destDir,
 			SkipFrontMatter: 0,
@@ -266,6 +384,7 @@ func RunInteractiveWizard(version string) (*InteractiveOptions, error) {
 	fmt.Printf("%s%s[+] All custom settings configured. Starting extraction...%s\n\n", TealBright, Bold, Reset)
 
 	return &InteractiveOptions{
+		Mode:            ModeSingle,
 		PDFPath:         pdfPath,
 		DestinationDir:  destDir,
 		SkipFrontMatter: skipFront,

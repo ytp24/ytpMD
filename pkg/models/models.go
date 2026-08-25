@@ -1,6 +1,9 @@
 package models
 
-import "path/filepath"
+import (
+	"path/filepath"
+	"time"
+)
 
 // Config defines the extraction and transformation settings.
 type Config struct {
@@ -16,6 +19,7 @@ type Config struct {
 	DetectCodeBlocks      bool
 	SplitByChapter        bool
 	GenerateTOCIndex      bool
+	Concurrency           int
 	StopPatterns          []string
 }
 
@@ -34,6 +38,7 @@ func DefaultConfig() Config {
 		DetectCodeBlocks:      true,
 		SplitByChapter:        true,
 		GenerateTOCIndex:      true,
+		Concurrency:           4,
 		StopPatterns: []string{
 			`(?i)^appendix\s+[a-z0-9]`,
 			`(?i)^appendices\b`,
@@ -68,6 +73,27 @@ type SplitResult struct {
 	TotalPages      int
 	ProcessedPages  int
 	SkippedPages    int
+}
+
+// FileResult holds individual file execution status in a concurrent batch.
+type FileResult struct {
+	PDFPath       string
+	PDFName       string
+	Success       bool
+	Error         error
+	ChaptersCount int
+	TotalPages    int
+}
+
+// BatchResult holds aggregated batch execution metrics.
+type BatchResult struct {
+	BatchName       string
+	TargetDirectory string
+	TotalFiles      int
+	ProcessedFiles  int
+	FailedFiles     int
+	Results         []FileResult
+	Duration        time.Duration
 }
 
 // PDFPage represents an individual page extracted from the PDF.
