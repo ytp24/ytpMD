@@ -56,6 +56,7 @@ type InteractiveOptions struct {
 	StartPage       int
 	EndPage         int
 	Concurrency     int
+	Overwrite       bool
 }
 
 // PrintBanner renders the big italic painted teal ASCII ytpMD logo with [pdf2md] underneath.
@@ -72,6 +73,27 @@ func PrintBanner(version string) {
 	fmt.Printf("   %s%s-- High-Performance Concurrent PDF to Markdown Engine --%s\n", TealBright, Italic, Reset)
 	fmt.Printf("   %s%sTransforms PDFs into Chapter-Aware Markdown Notes with Zero Noise%s\n", ColorGray, Italic, Reset)
 	fmt.Println()
+}
+
+// CheckDirectoryNonEmpty returns true if a directory exists and contains files.
+func CheckDirectoryNonEmpty(dirPath string) bool {
+	clean := validator.ExpandPath(dirPath)
+	entries, err := os.ReadDir(clean)
+	return err == nil && len(entries) > 0
+}
+
+// CheckFileExists returns true if a file exists.
+func CheckFileExists(filePath string) bool {
+	clean := validator.ExpandPath(filePath)
+	_, err := os.Stat(clean)
+	return err == nil
+}
+
+// PromptOverwrite asks user whether to overwrite existing folder/files.
+func PromptOverwrite(reader *bufio.Reader, targetPath string) bool {
+	clean := validator.ExpandPath(targetPath)
+	label := fmt.Sprintf("Output folder '%s' already exists with files. Overwrite?", filepath.Base(clean))
+	return PromptBool(reader, label, false)
 }
 
 // PromptPDFFile interactively requests PDF path, opening a GUI file selection window if Enter is pressed on empty input.
@@ -278,7 +300,7 @@ func PromptBool(reader *bufio.Reader, label string, defaultVal bool) bool {
 	}
 }
 
-// RunInteractiveWizard executes the full question-answer wizard with smart defaults.
+// RunInteractiveWizard executes the full question-answer wizard with overwrite detection.
 func RunInteractiveWizard(version string) (*InteractiveOptions, error) {
 	PrintBanner(version)
 
@@ -305,6 +327,15 @@ func RunInteractiveWizard(version string) (*InteractiveOptions, error) {
 		destDir, err := PromptDestinationDir(reader, DefaultDestinationRoot)
 		if err != nil {
 			return nil, err
+		}
+
+		targetBatchDir := filepath.Join(validator.ExpandPath(destDir), batchName)
+		overwrite := true
+		if CheckDirectoryNonEmpty(targetBatchDir) {
+			overwrite = PromptOverwrite(reader, targetBatchDir)
+			if !overwrite {
+				return nil, fmt.Errorf("operation cancelled: destination directory already exists")
+			}
 		}
 
 		useDefaults := PromptBool(reader, "Use standard production defaults (TOC chapters -> Appendix cutoff)?", true)
@@ -334,6 +365,7 @@ func RunInteractiveWizard(version string) (*InteractiveOptions, error) {
 			ExcludeAppendix: excludeAppendix,
 			SplitByChapters: splitChapters,
 			Concurrency:     concurrency,
+			Overwrite:       overwrite,
 		}, nil
 	}
 
@@ -346,6 +378,16 @@ func RunInteractiveWizard(version string) (*InteractiveOptions, error) {
 	destDir, err := PromptDestinationDir(reader, DefaultDestinationRoot)
 	if err != nil {
 		return nil, err
+	}
+
+	pdfBaseName := strings.TrimSuffix(filepath.Base(pdfPath), filepath.Ext(pdfPath))
+	targetDocDir := filepath.Join(validator.ExpandPath(destDir), pdfBaseName)
+	overwrite := true
+	if CheckDirectoryNonEmpty(targetDocDir) {
+		overwrite = PromptOverwrite(reader, targetDocDir)
+		if !overwrite {
+			return nil, fmt.Errorf("operation cancelled: destination directory already exists")
+		}
 	}
 
 	useDefaults := PromptBool(reader, "Use standard production defaults (TOC chapters -> Appendix cutoff)?", true)
@@ -362,6 +404,7 @@ func RunInteractiveWizard(version string) (*InteractiveOptions, error) {
 			SplitByChapters: true,
 			StartPage:       1,
 			EndPage:         0,
+			Overwrite:       overwrite,
 		}, nil
 	}
 
@@ -392,5 +435,6 @@ func RunInteractiveWizard(version string) (*InteractiveOptions, error) {
 		SplitByChapters: splitChapters,
 		StartPage:       startPage,
 		EndPage:         endPage,
+		Overwrite:       overwrite,
 	}, nil
 }

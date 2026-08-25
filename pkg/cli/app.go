@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -101,6 +102,7 @@ func printUsage() {
 %s%sOPTIONS (for non-interactive CLI flags):%s
    -o, -output <path>              Destination root folder (default: ~/Documents/ytpMD)
    -name <batch_name>              Subfolder name for batch storage (default: input folder name)
+   -f, -force, -overwrite          Overwrite existing destination folder without prompting
    -concurrency <N>                Number of parallel worker goroutines (default: 4)
    -skip-front <N>                 Skip first N pages (covers, copyright, TOC) (default: 0)
    -start-page <N>                 Start page number (default: 1)
@@ -110,14 +112,17 @@ func printUsage() {
    -r, -recursive                  Recursively search subdirectories in batch mode
 
 %s%sEXAMPLES:%s
-   # Interactive mode (launches wizard with native file/folder chooser):
+   # Interactive mode (prompts with file chooser & overwrite checks):
    ytpmd
 
    # Convert single PDF into ~/Documents/ytpMD/DevOps_Handbook/:
    ytpmd convert DevOps_Handbook.pdf
 
+   # Force overwrite if destination already exists:
+   ytpmd convert DevOps_Handbook.pdf -force
+
    # Concurrent batch conversion into ~/Documents/ytpMD/CloudBooks/:
-   ytpmd batch ~/Downloads/PDFs/ -name CloudBooks -concurrency 6
+   ytpmd batch ~/Downloads/PDFs/ -name CloudBooks -concurrency 6 -force
 `, ui.Bold, ui.TealLight, ui.Reset,
 		ui.TealBright, ui.Reset,
 		ui.TealBright, ui.Reset,
@@ -132,8 +137,8 @@ func printUsage() {
 func runInteractiveMode(ctx context.Context) {
 	opts, err := ui.RunInteractiveWizard(AppVersion)
 	if err != nil {
-		fmt.Printf("%s[x] Error:%s %v\n", ui.ColorRed, ui.Reset, err)
-		os.Exit(1)
+		fmt.Printf("%s[x] %v%s\n", ui.ColorYellow, err, ui.Reset)
+		return
 	}
 
 	cfg := core.DefaultConfig()
@@ -215,6 +220,7 @@ func runConvert(ctx context.Context, args []string) {
 		keepAppendix bool
 		singleFile   bool
 		noReflow     bool
+		force        bool
 	)
 
 	fs.StringVar(&outputDir, "o", ui.DefaultDestinationRoot, "Destination root directory")
@@ -225,13 +231,16 @@ func runConvert(ctx context.Context, args []string) {
 	fs.BoolVar(&keepAppendix, "keep-appendix", false, "Keep appendix and index")
 	fs.BoolVar(&singleFile, "single-file", false, "Generate single monolithic .md file")
 	fs.BoolVar(&noReflow, "no-reflow", false, "Disable paragraph reflow")
+	fs.BoolVar(&force, "f", false, "Overwrite existing destination folder")
+	fs.BoolVar(&force, "force", false, "Overwrite existing destination folder")
+	fs.BoolVar(&force, "overwrite", false, "Overwrite existing destination folder")
 
 	_ = fs.Parse(args)
 
 	positional := fs.Args()
 	if len(positional) < 1 {
 		fmt.Printf("%s[x] Error: missing input PDF file path.%s\n", ui.ColorRed, ui.Reset)
-		fmt.Println("Usage: ytpmd convert <input.pdf> [-o <output_dir>]")
+		fmt.Println("Usage: ytpmd convert <input.pdf> [-o <output_dir>] [-force]")
 		os.Exit(1)
 	}
 
@@ -247,6 +256,17 @@ func runConvert(ctx context.Context, args []string) {
 		os.Exit(1)
 	}
 
+	pdfBaseName := strings.TrimSuffix(filepath.Base(inputPdf), filepath.Ext(inputPdf))
+	targetDocDir := filepath.Join(destDir, pdfBaseName)
+
+	if !force && ui.CheckDirectoryNonEmpty(targetDocDir) {
+		reader := bufio.NewReader(os.Stdin)
+		if !ui.PromptOverwrite(reader, targetDocDir) {
+			fmt.Printf("%s[!] Conversion cancelled: output folder '%s' already exists.%s\n", ui.ColorYellow, targetDocDir, ui.Reset)
+			return
+		}
+	}
+
 	cfg := core.DefaultConfig()
 	cfg.SkipFrontMatterPages = skipFront
 	cfg.StartPage = startPage
@@ -259,12 +279,20 @@ func runConvert(ctx context.Context, args []string) {
 	fmt.Printf("%s[*] Processing:%s %s...\n", ui.TealLight, ui.Reset, filepath.Base(inputPdf))
 
 	if singleFile {
+		targetFile := filepath.Join(destDir, pdfBaseName+".md")
+		if !force && ui.CheckFileExists(targetFile) {
+			reader := bufio.NewReader(os.Stdin)
+			if !ui.PromptBool(reader, fmt.Sprintf("File '%s' already exists. Overwrite?", filepath.Base(targetFile)), false) {
+				fmt.Printf("%s[!] Conversion cancelled.%s\n", ui.ColorYellow, ui.Reset)
+				return
+			}
+		}
+
 		doc, err := ext.ExtractFile(ctx, inputPdf)
 		if err != nil {
 			fmt.Printf("%s[x] Extraction failed:%s %v\n", ui.ColorRed, ui.Reset, err)
 			os.Exit(1)
 		}
-		targetFile := filepath.Join(destDir, strings.TrimSuffix(filepath.Base(inputPdf), filepath.Ext(inputPdf))+".md")
 		if err := os.WriteFile(targetFile, []byte(doc.MarkdownContent), 0644); err != nil {
 			fmt.Printf("%s[x] Failed to save file:%s %v\n", ui.ColorRed, ui.Reset, err)
 			os.Exit(1)
@@ -300,6 +328,7 @@ func runBatch(ctx context.Context, args []string) {
 		skipFront    int
 		keepAppendix bool
 		recursive    bool
+		force        bool
 	)
 
 	fs.StringVar(&outputDir, "o", ui.DefaultDestinationRoot, "Base destination root")
@@ -310,13 +339,16 @@ func runBatch(ctx context.Context, args []string) {
 	fs.BoolVar(&keepAppendix, "keep-appendix", false, "Keep appendix and index")
 	fs.BoolVar(&recursive, "r", false, "Recursive search")
 	fs.BoolVar(&recursive, "recursive", false, "Recursive search")
+	fs.BoolVar(&force, "f", false, "Overwrite existing destination folder")
+	fs.BoolVar(&force, "force", false, "Overwrite existing destination folder")
+	fs.BoolVar(&force, "overwrite", false, "Overwrite existing destination folder")
 
 	_ = fs.Parse(args)
 
 	positional := fs.Args()
 	if len(positional) < 1 {
 		fmt.Printf("%s[x] Error: missing input directory.%s\n", ui.ColorRed, ui.Reset)
-		fmt.Println("Usage: ytpmd batch <directory> [-name <batch_name>] [-o <output_dir>] [-concurrency <N>]")
+		fmt.Println("Usage: ytpmd batch <directory> [-name <batch_name>] [-o <output_dir>] [-concurrency <N>] [-force]")
 		os.Exit(1)
 	}
 
@@ -330,6 +362,15 @@ func runBatch(ctx context.Context, args []string) {
 	if err := validator.ValidateDirectory(destRoot); err != nil {
 		fmt.Printf("%s[x] %v%s\n", ui.ColorRed, err, ui.Reset)
 		os.Exit(1)
+	}
+
+	targetBatchDir := filepath.Join(destRoot, batchName)
+	if !force && ui.CheckDirectoryNonEmpty(targetBatchDir) {
+		reader := bufio.NewReader(os.Stdin)
+		if !ui.PromptOverwrite(reader, targetBatchDir) {
+			fmt.Printf("%s[!] Batch cancelled: destination directory '%s' already exists.%s\n", ui.ColorYellow, targetBatchDir, ui.Reset)
+			return
+		}
 	}
 
 	pdfFiles, err := findPDFFiles(inputDir, recursive)
