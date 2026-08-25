@@ -11,7 +11,7 @@ import (
 	"github.com/ytp24/ytpMD/pkg/transformer"
 )
 
-// Splitter implements the core.Splitter interface with Agent Manifest generation.
+// Splitter implements the core.Splitter interface with robust TOC vs Body discrimination.
 type Splitter struct {
 	config      core.Config
 	transformer *transformer.Transformer
@@ -25,20 +25,29 @@ func NewSplitter(cfg core.Config) *Splitter {
 	}
 }
 
-// SplitIntoChapters groups extracted page lines into distinct chapter structures.
+// SplitIntoChapters groups extracted page lines into distinct, verified chapter structures.
 func (s *Splitter) SplitIntoChapters(pages []core.PDFPage, pdfTitle string) []core.Chapter {
-	var chapters []core.Chapter
+	var rawChapters []core.Chapter
 	var currentChapter *core.Chapter
 
-	chapterHeaderPattern := regexp.MustCompile(`(?i)^(CHAPTER\s+\d+|PART\s+[IVXLCDM]+|MODULE\s+\d+|SECTION\s+\d+)[:.]?\s*(.*)$`)
+	chapterHeaderPattern := regexp.MustCompile(`(?i)^(CHAPTER\s+\d+|PART\s+[IVXLCDM]+|MODULE\s+\d+)[:.]?\s*(.*)$`)
 	numberedHeadingPattern := regexp.MustCompile(`^(\d+)\.\s+([A-Z][A-Za-z0-9\s,-]{3,50})$`)
-
-	chapterIndex := 1
+	tocLeaderPattern := regexp.MustCompile(`(?i)^(chapter\s+\d+|part\s+[ivxlcdm]+).*[\.\s_–-]{3,}\s*\d+$`)
 
 	for _, page := range pages {
 		if page.IsFilteredOut {
 			continue
 		}
+
+		// 1. Pre-check if page is a Table of Contents / Outline page
+		chapterHeadersOnPage := 0
+		for _, l := range page.Lines {
+			t := strings.TrimSpace(l)
+			if chapterHeaderPattern.MatchString(t) || tocLeaderPattern.MatchString(t) {
+				chapterHeadersOnPage++
+			}
+		}
+		isTOCPage := chapterHeadersOnPage >= 2
 
 		for _, line := range page.Lines {
 			trimmed := strings.TrimSpace(line)
@@ -52,15 +61,17 @@ func (s *Splitter) SplitIntoChapters(pages []core.PDFPage, pdfTitle string) []co
 			isNewChapter := false
 			var chapterTitle string
 
-			if m := chapterHeaderPattern.FindStringSubmatch(trimmed); m != nil {
-				isNewChapter = true
-				chapterTitle = m[1]
-				if len(m) > 2 && m[2] != "" {
-					chapterTitle += ": " + m[2]
+			if !isTOCPage && !tocLeaderPattern.MatchString(trimmed) {
+				if m := chapterHeaderPattern.FindStringSubmatch(trimmed); m != nil {
+					isNewChapter = true
+					chapterTitle = m[1]
+					if len(m) > 2 && m[2] != "" {
+						chapterTitle += ": " + m[2]
+					}
+				} else if m := numberedHeadingPattern.FindStringSubmatch(trimmed); m != nil && currentChapter == nil {
+					isNewChapter = true
+					chapterTitle = m[1] + ". " + m[2]
 				}
-			} else if m := numberedHeadingPattern.FindStringSubmatch(trimmed); m != nil && currentChapter == nil {
-				isNewChapter = true
-				chapterTitle = m[1] + ". " + m[2]
 			}
 
 			if isNewChapter {
@@ -68,32 +79,24 @@ func (s *Splitter) SplitIntoChapters(pages []core.PDFPage, pdfTitle string) []co
 					currentChapter.Content = s.transformer.Transform([][]string{currentChapter.Lines})
 					currentChapter.WordCount = len(strings.Fields(currentChapter.Content))
 					currentChapter.TokenEstimate = int(float64(len(currentChapter.Content)) / 3.8)
-					chapters = append(chapters, *currentChapter)
+					rawChapters = append(rawChapters, *currentChapter)
 				}
 
 				slug := sanitizeSlug(chapterTitle)
-				filename := fmt.Sprintf("%02d_%s.md", chapterIndex, slug)
-
 				currentChapter = &core.Chapter{
-					Index:     chapterIndex,
 					Title:     chapterTitle,
 					Slug:      slug,
-					Filename:  filename,
 					StartPage: page.PageNumber,
 					Lines:     []string{line},
 				}
-				chapterIndex++
 			} else {
 				if currentChapter == nil {
 					currentChapter = &core.Chapter{
-						Index:     chapterIndex,
 						Title:     "Introduction & Overview",
 						Slug:      "introduction_and_overview",
-						Filename:  fmt.Sprintf("%02d_introduction_and_overview.md", chapterIndex),
 						StartPage: page.PageNumber,
 						Lines:     []string{},
 					}
-					chapterIndex++
 				}
 				currentChapter.Lines = append(currentChapter.Lines, line)
 			}
@@ -104,10 +107,33 @@ func (s *Splitter) SplitIntoChapters(pages []core.PDFPage, pdfTitle string) []co
 		currentChapter.Content = s.transformer.Transform([][]string{currentChapter.Lines})
 		currentChapter.WordCount = len(strings.Fields(currentChapter.Content))
 		currentChapter.TokenEstimate = int(float64(len(currentChapter.Content)) / 3.8)
-		chapters = append(chapters, *currentChapter)
+		rawChapters = append(rawChapters, *currentChapter)
 	}
 
-	if len(chapters) == 0 {
+	// 2. Post-Processing Filter: Eliminate front-matter stub chapters and merge non-content fragments
+	var finalChapters []core.Chapter
+
+	for _, ch := range rawChapters {
+		// If this is an intro stub with fewer than 30 words and there are other chapters, skip it
+		if ch.Slug == "introduction_and_overview" && ch.WordCount < 30 && len(rawChapters) > 1 {
+			continue
+		}
+
+		// If chapter has fewer than 20 words, merge into previous chapter
+		if ch.WordCount < 20 && len(finalChapters) > 0 {
+			last := &finalChapters[len(finalChapters)-1]
+			last.Lines = append(last.Lines, ch.Lines...)
+			last.Content = s.transformer.Transform([][]string{last.Lines})
+			last.WordCount = len(strings.Fields(last.Content))
+			last.TokenEstimate = int(float64(len(last.Content)) / 3.8)
+			continue
+		}
+
+		finalChapters = append(finalChapters, ch)
+	}
+
+	// If no valid chapters extracted, fallback to single document chapter
+	if len(finalChapters) == 0 {
 		var allLines []string
 		for _, p := range pages {
 			if !p.IsFilteredOut {
@@ -115,7 +141,7 @@ func (s *Splitter) SplitIntoChapters(pages []core.PDFPage, pdfTitle string) []co
 			}
 		}
 		content := s.transformer.Transform([][]string{allLines})
-		chapters = append(chapters, core.Chapter{
+		finalChapters = append(finalChapters, core.Chapter{
 			Index:         1,
 			Title:         pdfTitle,
 			Slug:          sanitizeSlug(pdfTitle),
@@ -128,17 +154,23 @@ func (s *Splitter) SplitIntoChapters(pages []core.PDFPage, pdfTitle string) []co
 		})
 	}
 
-	// Link Previous and Next navigation pointers
-	for i := range chapters {
+	// 3. Re-index and assign filenames
+	for i := range finalChapters {
+		finalChapters[i].Index = i + 1
+		finalChapters[i].Filename = fmt.Sprintf("%02d_%s.md", i+1, finalChapters[i].Slug)
+	}
+
+	// 4. Link Previous and Next navigation pointers
+	for i := range finalChapters {
 		if i > 0 {
-			chapters[i].PrevFilename = chapters[i-1].Filename
+			finalChapters[i].PrevFilename = finalChapters[i-1].Filename
 		}
-		if i < len(chapters)-1 {
-			chapters[i].NextFilename = chapters[i+1].Filename
+		if i < len(finalChapters)-1 {
+			finalChapters[i].NextFilename = finalChapters[i+1].Filename
 		}
 	}
 
-	return chapters
+	return finalChapters
 }
 
 // GenerateTOCIndex creates a human-readable master README.md index linking to each chapter.

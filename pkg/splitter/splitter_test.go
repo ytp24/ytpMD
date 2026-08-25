@@ -1,13 +1,12 @@
 package splitter
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/ytp24/ytpMD/pkg/core"
 )
 
-func TestSplitter_SplitIntoChapters(t *testing.T) {
+func TestSplitter_TOCPageIgnore(t *testing.T) {
 	cfg := core.DefaultConfig()
 	s := NewSplitter(cfg)
 
@@ -15,35 +14,42 @@ func TestSplitter_SplitIntoChapters(t *testing.T) {
 		{
 			PageNumber: 1,
 			Lines: []string{
-				"CHAPTER 1: INTRODUCTION TO CONTAINERS",
-				"Containers isolate applications at the OS level.",
+				"Table of Contents",
+				"Chapter 1: Cloud Fundamentals .................. 1",
+				"Chapter 2: Kubernetes Orchestration ............ 25",
+				"Chapter 3: AWS Risk and Compliance ............. 50",
 			},
 		},
 		{
 			PageNumber: 2,
 			Lines: []string{
-				"CHAPTER 2: KUBERNETES ARCHITECTURE",
-				"Kubernetes schedules containers across a cluster.",
+				"CHAPTER 1: CLOUD FUNDAMENTALS",
+				"Cloud computing delivers computing services over the internet.",
+				"It provides scalable and on-demand compute infrastructure for modern organizations.",
+			},
+		},
+		{
+			PageNumber: 3,
+			Lines: []string{
+				"CHAPTER 2: KUBERNETES ORCHESTRATION",
+				"Kubernetes automates container lifecycle management across clusters.",
+				"It manages deployment, scaling, service discovery, and zero-downtime rollouts.",
 			},
 		},
 	}
 
-	chapters := s.SplitIntoChapters(pages, "TestBook")
+	chapters := s.SplitIntoChapters(pages, "StudyGuide")
 
+	// Must extract 2 actual chapters, NOT 5 (TOC lines ignored)
 	if len(chapters) != 2 {
-		t.Fatalf("expected 2 chapters, got %d", len(chapters))
+		t.Fatalf("expected 2 actual body chapters, got %d", len(chapters))
 	}
 
-	if chapters[0].Filename != "01_introduction_to_containers.md" {
-		t.Errorf("expected filename '01_introduction_to_containers.md', got '%s'", chapters[0].Filename)
+	if chapters[0].Title != "CHAPTER 1: CLOUD FUNDAMENTALS" {
+		t.Errorf("expected Chapter 1 title, got '%s'", chapters[0].Title)
 	}
 
-	if chapters[1].Filename != "02_kubernetes_architecture.md" {
-		t.Errorf("expected filename '02_kubernetes_architecture.md', got '%s'", chapters[1].Filename)
-	}
-
-	toc := s.GenerateTOCIndex("TestBook", chapters, 2)
-	if !strings.Contains(toc, "01_introduction_to_containers.md") {
-		t.Errorf("expected TOC to contain link to chapter 1")
+	if chapters[1].Title != "CHAPTER 2: KUBERNETES ORCHESTRATION" {
+		t.Errorf("expected Chapter 2 title, got '%s'", chapters[1].Title)
 	}
 }

@@ -26,12 +26,14 @@ func (t *Transformer) Transform(pagesLines [][]string) string {
 		allLines = append(allLines, pLines...)
 	}
 
+	// 1. Format headings & lists first
+	allLines = t.formatHeadings(allLines)
+	allLines = t.formatLists(allLines)
+
+	// 2. Detect genuine code blocks (strict syntax matching, no indentation false-positives)
 	if t.config.DetectCodeBlocks {
 		allLines = t.detectCodeBlocks(allLines)
 	}
-
-	allLines = t.formatHeadings(allLines)
-	allLines = t.formatLists(allLines)
 
 	var output string
 	if t.config.ReflowParagraphs {
@@ -49,16 +51,19 @@ func (t *Transformer) Transform(pagesLines [][]string) string {
 func (t *Transformer) GenerateChapterMarkdown(ch core.Chapter, sourcePDF string, totalChapters int) string {
 	var sb strings.Builder
 
+	cleanSource := strings.TrimSuffix(sourcePDF, ".pdf")
+	cleanSource = strings.TrimSuffix(cleanSource, ".PDF") + ".pdf"
+
 	words := countWords(ch.Content)
 	tokens := estimateTokens(ch.Content)
 
-	// 1. Agentic YAML Frontmatter (for RAG indexers, vector embeddings & LLMs)
+	// 1. Agentic YAML Frontmatter
 	if t.config.AddYAMLFrontmatter {
 		sb.WriteString("---\n")
 		sb.WriteString(fmt.Sprintf("title: %q\n", ch.Title))
 		sb.WriteString(fmt.Sprintf("chapter: %d\n", ch.Index))
 		sb.WriteString(fmt.Sprintf("total_chapters: %d\n", totalChapters))
-		sb.WriteString(fmt.Sprintf("source_document: %q\n", sourcePDF))
+		sb.WriteString(fmt.Sprintf("source_document: %q\n", cleanSource))
 		sb.WriteString(fmt.Sprintf("start_page: %d\n", ch.StartPage))
 		sb.WriteString(fmt.Sprintf("word_count: %d\n", words))
 		sb.WriteString(fmt.Sprintf("estimated_tokens: %d\n", tokens))
@@ -66,7 +71,7 @@ func (t *Transformer) GenerateChapterMarkdown(ch core.Chapter, sourcePDF string,
 		sb.WriteString("---\n\n")
 	}
 
-	// 2. Navigation Breadcrumbs for Sequential AI Multi-file Traversal & Humans
+	// 2. Navigation Breadcrumbs
 	sb.WriteString("<div align=\"center\">\n\n")
 	var navItems []string
 	if ch.PrevFilename != "" {
@@ -96,24 +101,34 @@ func (t *Transformer) detectCodeBlocks(lines []string) []string {
 	inCode := false
 	codeLang := "bash"
 
-	goPattern := regexp.MustCompile(`^(package\s+\w+|import\s+\(|func\s+\w+|type\s+\w+\s+struct)`)
-	pythonPattern := regexp.MustCompile(`^(def\s+\w+|import\s+[\w.]+|class\s+\w+[:(]|from\s+\w+\s+import)`)
-	yamlPattern := regexp.MustCompile(`^(apiVersion:|kind:|metadata:|spec:|resources:|services:)`)
-	jsonPattern := regexp.MustCompile(`^(\{\s*"|"[\w_-]+":\s*["{\[\d])`)
-	bashPattern := regexp.MustCompile(`^(\s{4,}|\t|\$\s+|#\s*!/|sudo\s+|kubectl\s+|docker\s+|terraform\s+|ansible\s+)`)
+	goPattern := regexp.MustCompile(`^\s*(package\s+\w+|import\s+\(|func\s+\w+|type\s+\w+\s+struct)`)
+	pythonPattern := regexp.MustCompile(`^\s*(def\s+\w+\(|import\s+[\w.]+|class\s+\w+[:(]|from\s+\w+\s+import)`)
+	yamlPattern := regexp.MustCompile(`^\s*(apiVersion:\s*[\w./]+|kind:\s+[A-Z]\w+|spec:\s*$)`)
+	jsonPattern := regexp.MustCompile(`^\s*(\{\s*"|"[\w_-]+":\s*["{\[\d])`)
+	bashPattern := regexp.MustCompile(`^\s*(\$\s+|#!\/bin\/|sudo\s+|kubectl\s+|docker\s+|terraform\s+|ansible\s+|helm\s+|git\s+|aws\s+|az\s+|curl\s+|npm\s+|pip\s+)`)
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
+		// Never treat Markdown headings as code blocks
+		if strings.HasPrefix(trimmed, "#") {
+			if inCode {
+				inCode = false
+				result = append(result, "```")
+			}
+			result = append(result, line)
+			continue
+		}
+
 		var detectedLang string
 		switch {
-		case goPattern.MatchString(trimmed):
+		case goPattern.MatchString(line):
 			detectedLang = "go"
-		case pythonPattern.MatchString(trimmed):
+		case pythonPattern.MatchString(line):
 			detectedLang = "python"
-		case yamlPattern.MatchString(trimmed):
+		case yamlPattern.MatchString(line):
 			detectedLang = "yaml"
-		case jsonPattern.MatchString(trimmed):
+		case jsonPattern.MatchString(line):
 			detectedLang = "json"
 		case bashPattern.MatchString(line):
 			detectedLang = "bash"
@@ -125,11 +140,11 @@ func (t *Transformer) detectCodeBlocks(lines []string) []string {
 				codeLang = detectedLang
 				result = append(result, "```"+codeLang)
 			}
-			result = append(result, strings.TrimRight(line, " \t\r\n"))
+			result = append(result, line)
 		} else {
 			if inCode && trimmed == "" {
 				result = append(result, "")
-			} else if inCode {
+			} else if inCode && !isCodeContinuation(trimmed) {
 				inCode = false
 				result = append(result, "```")
 				result = append(result, line)
@@ -142,6 +157,17 @@ func (t *Transformer) detectCodeBlocks(lines []string) []string {
 		result = append(result, "```")
 	}
 	return result
+}
+
+func isCodeContinuation(trimmed string) bool {
+	// If line ends with typical code punctuation or starts with symbols/indentation
+	if strings.HasPrefix(trimmed, "-") || strings.HasPrefix(trimmed, "--") || strings.HasPrefix(trimmed, "}") || strings.HasPrefix(trimmed, "]") {
+		return true
+	}
+	if strings.Contains(trimmed, "=") || strings.Contains(trimmed, ":") || strings.Contains(trimmed, "{") || strings.Contains(trimmed, "}") {
+		return true
+	}
+	return false
 }
 
 func (t *Transformer) formatHeadings(lines []string) []string {
@@ -296,7 +322,6 @@ func countWords(s string) int {
 }
 
 func estimateTokens(s string) int {
-	// Standard heuristic: 1 token ≈ 4 characters or ~0.75 words
 	return int(float64(len(s)) / 3.8)
 }
 
