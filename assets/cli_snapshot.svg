@@ -44,13 +44,13 @@
   <circle cx="60" cy="19" r="6" fill="#27C93F" />
   
   <!-- Header Title -->
-  <text x="460" y="24" text-anchor="middle" class="title-text">ytp24 — ytpMD [pdf2md] v3.1.0 (Agentic Document Pipeline)</text>
+  <text x="460" y="24" text-anchor="middle" class="title-text">ytpMD — ytpMD [pdf2md] v3.1.0 (Agentic Document Pipeline)</text>
 
   <!-- Terminal Content -->
   <g transform="translate(30, 70)">
     <!-- Command Invocation -->
     <text x="0" y="0" class="code-text">
-      <tspan class="teal-bright">$</tspan> <tspan class="white-bold">ytp24</tspan>
+      <tspan class="teal-bright">$</tspan> <tspan class="white-bold">ytpmd</tspan>
     </text>
 
     <!-- ASCII Logo -->
@@ -70,7 +70,7 @@
       <tspan class="teal-light">[?]</tspan> <tspan class="white-bold">Enter PDF path:</tspan> <tspan class="teal-pale">/home/yahya/Downloads/DevOps_Handbook.pdf</tspan>
     </text>
     <text x="0" y="190" class="code-text">
-      <tspan class="teal-light">[?]</tspan> <tspan class="white-bold">Enter destination root:</tspan> <tspan class="gray">~/Documents/ytp24</tspan> <tspan class="teal-bright">[Default]</tspan>
+      <tspan class="teal-light">[?]</tspan> <tspan class="white-bold">Enter destination root:</tspan> <tspan class="gray">~/Documents/ytpMD</tspan> <tspan class="teal-bright">[Default]</tspan>
     </text>
     <text x="0" y="215" class="code-text">
       <tspan class="teal-light">[?]</tspan> <tspan class="white-bold">Production Defaults (TOC Split + AI Manifest)?</tspan> <tspan class="teal-pale">(Y/n): Y</tspan>
@@ -93,7 +93,7 @@
 
     <!-- Summary Output -->
     <text x="0" y="325" class="code-text teal-bright" font-weight="bold">[+] Extraction Complete (Agent-Ready)</text>
-    <text x="15" y="348" class="code-text gray">[-] Destination:  <tspan class="white-bold">~/Documents/ytp24/DevOps_Handbook/</tspan></text>
+    <text x="15" y="348" class="code-text gray">[-] Destination:  <tspan class="white-bold">~/Documents/ytpMD/DevOps_Handbook/</tspan></text>
     <text x="15" y="368" class="code-text gray">[-] Human TOC:    <tspan class="teal-pale">README.md</tspan> (TOC Index &amp; Statistics)</text>
     <text x="15" y="388" class="code-text gray">[-] AI Manifest:  <tspan class="teal-bright">AGENTS.md</tspan> (RAG &amp; Autonomous Agent Ingestion Map)</text>
     <text x="15" y="408" class="code-text gray">[-] Chapters:     <tspan class="white-bold">12 Markdown files</tspan> with YAML frontmatter &amp; navigation breadcrumbs</text>

@@ -1,18 +1,18 @@
 <div align="center">
 
-# ⚡ ytp24 `[pdf2md]`
+# ⚡ ytpMD `[pdf2md]`
 
 ### High-Performance, Agent-Ready PDF to Chapter-Based Markdown Engine
 
-[![CI](https://github.com/ytp24/ytp24/actions/workflows/ci.yml/badge.svg)](https://github.com/ytp24/ytp24/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/badge/Release-v3.1.0-0D9488.svg)](https://github.com/ytp24/ytp24/releases)
+[![CI](https://github.com/ytp24/ytpMD/actions/workflows/ci.yml/badge.svg)](https://github.com/ytp24/ytpMD/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/badge/Release-v3.2.0-0D9488.svg)](https://github.com/ytp24/ytpMD/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-14B8A6.svg)](https://golang.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-2DD4BF.svg)](./LICENSE)
 [![AI Agent Friendly](https://img.shields.io/badge/AI%20Agent-Ready%20%E2%9C%93-5EEAD4.svg)](#-agentic-ai--rag-ready)
 
 <br/>
 
-<img src="./assets/cli_snapshot.svg" alt="ytp24 CLI Terminal Snapshot" width="850px" />
+<img src="./assets/cli_snapshot.svg" alt="ytpMD CLI Terminal Snapshot" width="850px" />
 
 <br/>
 
@@ -22,14 +22,14 @@
 
 ---
 
-## 💡 Why ytp24?
+## 💡 Why ytpMD?
 
 Raw PDFs are notoriously painful for both **humans** and **AI agents**:
 - ❌ Hard to search, slice, or load into LLM contexts without hitting token limits or losing formatting.
 - ❌ Cluttered with useless noise: page numbers, image tags, running headers, copyright footers, and massive appendix indexes.
 - ❌ Scanned layouts lose indentation, de-hyphenate words mid-sentence (`archi- \n tecture`), and mangle code snippets.
 
-**ytp24 fixes this completely**:
+**ytpMD fixes this completely**:
 - ✅ **Chapter-Split Organization**: Slices documents by Table of Contents into dedicated notes (`01_architecture.md`, `02_deployment.md`) inside a clean folder named after the book.
 - ✅ **AI Agent & RAG Ready**: Generates structured YAML frontmatter for each chapter and an [`AGENTS.md`](#agentsmd-ai-agent-manifest) manifest with token estimates and prompt instructions for local LLMs, LangChain, LlamaIndex, and Claude/Gemini coding agents.
 - ✅ **Noise Stripper & Appendix Cutoff**: Automatically detects the start of the Appendix, Index, Bibliography, and Glossary, and cuts off unnecessary text cleanly.
@@ -40,17 +40,17 @@ Raw PDFs are notoriously painful for both **humans** and **AI agents**:
 
 ## 🚀 30-Second Quick Start
 
-Simply run `ytp24` with no arguments to launch the interactive wizard:
+Simply run `ytpmd` with no arguments to launch the interactive wizard:
 
 ```bash
-ytp24
+ytpMD
 ```
 
 1. **Press [Enter]** on the PDF prompt to open your system's graphical file picker.
-2. **Press [Enter]** on the destination prompt to default to `~/Documents/ytp24`.
+2. **Press [Enter]** on the destination prompt to default to `~/Documents/ytpMD`.
 3. **Press [Enter]** to apply standard production defaults (TOC chapter extraction $\rightarrow$ Appendix cutoff).
 
-Done! Your book is converted and indexed under `~/Documents/ytp24/<book_name>/`.
+Done! Your book is converted and indexed under `~/Documents/ytpMD/<book_name>/`.
 
 ---
 
@@ -77,7 +77,7 @@ agent_instructions: "Cite section headers and use code snippets directly when re
 Alongside human-friendly `README.md`, an `AGENTS.md` file is automatically generated with machine-readable JSON schemas and sequential chapter maps so AI agents can navigate the repository without reading bloated text:
 
 ```
-~/Documents/ytp24/DevOps_Handbook/
+~/Documents/ytpMD/DevOps_Handbook/
 ├── README.md               # Human Table of Contents & statistics
 ├── AGENTS.md               # AI Agent Ingestion Manifest (JSON index + token metrics)
 ├── 01_introduction.md      # Chapter 1 with YAML frontmatter + breadcrumb navigation
@@ -92,7 +92,7 @@ Alongside human-friendly `README.md`, an `AGENTS.md` file is automatically gener
 ### 🐧 Linux (Debian / Ubuntu `.deb`)
 ```bash
 # Download and install the official .deb package without warnings:
-sudo apt install ./dist/ytp24_3.1.0_amd64.deb
+sudo apt install ./dist/ytpmd_3.2.0_amd64.deb
 ```
 *Or use the one-line Unix installer script:*
 ```bash
@@ -106,12 +106,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
 ```
 *Features on Windows:*
 - Uses native PowerShell `.NET` `OpenFileDialog` & `FolderBrowserDialog`.
-- Automatically installs to `%LOCALAPPDATA%\ytp24\bin` and registers into your User `PATH`.
+- Automatically installs to `%LOCALAPPDATA%\ytpMD\bin` and registers into your User `PATH`.
 
 ### 🍏 macOS / Homebrew
 ```bash
 brew install poppler
-go install github.com/ytp24/ytp24/cmd/ytp24@latest
+go install github.com/ytp24/ytpMD/cmd/ytpMD@latest
 ```
 
 ---
@@ -120,25 +120,25 @@ go install github.com/ytp24/ytp24/cmd/ytp24@latest
 
 ### 1. Interactive Wizard
 ```bash
-ytp24
+ytpMD
 ```
 
 ### 2. Single Document Conversion
 ```bash
 # Direct conversion into a chapter-based folder:
-ytp24 convert DevOps_Handbook.pdf
+ytpmd convert DevOps_Handbook.pdf
 
 # Skip first 4 front-matter pages (covers & dedication):
-ytp24 convert book.pdf -skip-front 4
+ytpmd convert book.pdf -skip-front 4
 
 # Output a single concatenated Markdown file instead of a chapter folder:
-ytp24 convert book.pdf -single-file
+ytpmd convert book.pdf -single-file
 ```
 
 ### 3. Concurrent Batch Processing
 ```bash
-# Convert all PDFs in a folder using 4 parallel worker goroutines into ~/Documents/ytp24/CloudLibrary/:
-ytp24 batch ~/Downloads/PDFs/ -name CloudLibrary -concurrency 4 -r
+# Convert all PDFs in a folder using 4 parallel worker goroutines into ~/Documents/ytpMD/CloudLibrary/:
+ytpmd batch ~/Downloads/PDFs/ -name CloudLibrary -concurrency 4 -r
 ```
 
 ---

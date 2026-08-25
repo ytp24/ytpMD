@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ytp24/ytp24/pkg/validator"
+	"github.com/ytp24/ytpMD/pkg/validator"
 )
 
 // ANSI Styling & Teal Palette
@@ -33,7 +33,7 @@ const (
 )
 
 // DefaultDestinationRoot is the standard base output folder for all extracted notes.
-const DefaultDestinationRoot = "~/Documents/ytp24"
+const DefaultDestinationRoot = "~/Documents/ytpMD"
 
 // ProcessingMode defines single file or batch processing.
 type ProcessingMode int
@@ -159,7 +159,7 @@ func PromptBatchDir(reader *bufio.Reader) (string, error) {
 	}
 }
 
-// PromptDestinationDir requests destination folder, defaulting to ~/Documents/ytp24.
+// PromptDestinationDir requests destination folder, defaulting to ~/Documents/ytpMD.
 func PromptDestinationDir(reader *bufio.Reader, defaultDir string) (string, error) {
 	defaultExpanded := validator.ExpandPath(defaultDir)
 	for {
@@ -323,7 +323,7 @@ func RunInteractiveWizard(version string) (*InteractiveOptions, error) {
 		}
 
 		fmt.Println()
-		fmt.Printf("%s%s[+] Batch configured: ~/Documents/ytp24/%s/%s\n\n", TealBright, Bold, batchName, Reset)
+		fmt.Printf("%s%s[+] Batch configured: ~/Documents/ytpMD/%s/%s\n\n", TealBright, Bold, batchName, Reset)
 
 		return &InteractiveOptions{
 			Mode:            ModeBatch,

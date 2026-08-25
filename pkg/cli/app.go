@@ -11,14 +11,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ytp24/ytp24/pkg/batch"
-	"github.com/ytp24/ytp24/pkg/core"
-	"github.com/ytp24/ytp24/pkg/extractor"
-	"github.com/ytp24/ytp24/pkg/ui"
-	"github.com/ytp24/ytp24/pkg/validator"
+	"github.com/ytp24/ytpMD/pkg/batch"
+	"github.com/ytp24/ytpMD/pkg/core"
+	"github.com/ytp24/ytpMD/pkg/extractor"
+	"github.com/ytp24/ytpMD/pkg/ui"
+	"github.com/ytp24/ytpMD/pkg/validator"
 )
 
-const AppVersion = "3.1.0"
+const AppVersion = "3.2.0"
 
 // Run is the main entrypoint for the CLI application.
 func Run() {
@@ -92,14 +92,14 @@ func Run() {
 func printUsage() {
 	ui.PrintBanner(AppVersion)
 	fmt.Printf(`%s%sUSAGE:%s
-   %sytp24%s                           Launch interactive wizard (single PDF or concurrent batch)
-   %sytp24 convert <input.pdf>%s       Convert a single PDF file
-   %sytp24 batch <directory>%s         Batch convert all PDFs using concurrent Goroutines
-   %sytp24 help%s                      Show this help screen
-   %sytp24 version%s                   Show version
+   %sytpmd%s                           Launch interactive wizard (single PDF or concurrent batch)
+   %sytpmd convert <input.pdf>%s       Convert a single PDF file into a chapter-based notes folder
+   %sytpmd batch <directory>%s         Batch convert all PDFs using concurrent Goroutines
+   %sytpmd help%s                      Show this help screen
+   %sytpmd version%s                   Show version
 
 %s%sOPTIONS (for non-interactive CLI flags):%s
-   -o, -output <path>              Destination root folder (default: ~/Documents/ytp24)
+   -o, -output <path>              Destination root folder (default: ~/Documents/ytpMD)
    -name <batch_name>              Subfolder name for batch storage (default: input folder name)
    -concurrency <N>                Number of parallel worker goroutines (default: 4)
    -skip-front <N>                 Skip first N pages (covers, copyright, TOC) (default: 0)
@@ -110,14 +110,14 @@ func printUsage() {
    -r, -recursive                  Recursively search subdirectories in batch mode
 
 %s%sEXAMPLES:%s
-   # Interactive mode:
-   ytp24
+   # Interactive mode (launches wizard with native file/folder chooser):
+   ytpmd
 
-   # Convert single PDF into ~/Documents/ytp24/DevOps_Handbook/:
-   ytp24 convert DevOps_Handbook.pdf
+   # Convert single PDF into ~/Documents/ytpMD/DevOps_Handbook/:
+   ytpmd convert DevOps_Handbook.pdf
 
-   # Concurrent batch conversion into ~/Documents/ytp24/CloudBooks/:
-   ytp24 batch ~/Downloads/PDFs/ -name CloudBooks -concurrency 6
+   # Concurrent batch conversion into ~/Documents/ytpMD/CloudBooks/:
+   ytpmd batch ~/Downloads/PDFs/ -name CloudBooks -concurrency 6
 `, ui.Bold, ui.TealLight, ui.Reset,
 		ui.TealBright, ui.Reset,
 		ui.TealBright, ui.Reset,
@@ -192,12 +192,13 @@ func runInteractiveMode(ctx context.Context) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("\n%s%s[+] Extraction Complete%s\n", ui.TealBright, ui.Bold, ui.Reset)
+	fmt.Printf("\n%s%s[+] Extraction Complete (Agent-Ready)%s\n", ui.TealBright, ui.Bold, ui.Reset)
 	fmt.Printf("   [-] %sDestination Folder:%s %s%s/%s\n", ui.Bold, ui.Reset, ui.TealLight, result.TargetDirectory, ui.Reset)
 	fmt.Printf("   [-] %sTOC Index:         %s %s/README.md\n", ui.Bold, ui.Reset, result.TargetDirectory)
+	fmt.Printf("   [-] %sAI Agent Manifest: %s %s/AGENTS.md\n", ui.Bold, ui.Reset, result.TargetDirectory)
 	fmt.Printf("   [-] %sTotal Chapters:    %s %d\n", ui.Bold, ui.Reset, len(result.Chapters))
 	for _, ch := range result.Chapters {
-		fmt.Printf("       + [%02d] %s %s-> %s%s\n", ch.Index, ch.Title, ui.ColorGray, ch.Filename, ui.Reset)
+		fmt.Printf("       + [%02d] %s %s-> %s (~%d tokens)%s\n", ch.Index, ch.Title, ui.ColorGray, ch.Filename, ch.TokenEstimate, ui.Reset)
 	}
 	fmt.Printf("   [-] %sStats:             %s %d total pages | %d converted | %d skipped/filtered.\n\n",
 		ui.Bold, ui.Reset, result.TotalPages, result.ProcessedPages, result.SkippedPages)
@@ -230,7 +231,7 @@ func runConvert(ctx context.Context, args []string) {
 	positional := fs.Args()
 	if len(positional) < 1 {
 		fmt.Printf("%s[x] Error: missing input PDF file path.%s\n", ui.ColorRed, ui.Reset)
-		fmt.Println("Usage: ytp24 convert <input.pdf> [-o <output_dir>]")
+		fmt.Println("Usage: ytpmd convert <input.pdf> [-o <output_dir>]")
 		os.Exit(1)
 	}
 
@@ -280,9 +281,10 @@ func runConvert(ctx context.Context, args []string) {
 
 	fmt.Printf("%s[+] Success! Extracted into folder:%s %s/\n", ui.TealBright, ui.Reset, result.TargetDirectory)
 	fmt.Printf("   [-] TOC Index: %s/README.md\n", result.TargetDirectory)
+	fmt.Printf("   [-] AI Agent Manifest: %s/AGENTS.md\n", result.TargetDirectory)
 	fmt.Printf("   [-] Total Chapters: %d\n", len(result.Chapters))
 	for _, ch := range result.Chapters {
-		fmt.Printf("       + [%02d] %s -> %s\n", ch.Index, ch.Title, ch.Filename)
+		fmt.Printf("       + [%02d] %s -> %s (~%d tokens)\n", ch.Index, ch.Title, ch.Filename, ch.TokenEstimate)
 	}
 	fmt.Printf("   [-] Stats: %d total pages | %d converted | %d skipped/filtered.\n",
 		result.TotalPages, result.ProcessedPages, result.SkippedPages)
@@ -314,7 +316,7 @@ func runBatch(ctx context.Context, args []string) {
 	positional := fs.Args()
 	if len(positional) < 1 {
 		fmt.Printf("%s[x] Error: missing input directory.%s\n", ui.ColorRed, ui.Reset)
-		fmt.Println("Usage: ytp24 batch <directory> [-name <batch_name>] [-o <output_dir>] [-concurrency <N>]")
+		fmt.Println("Usage: ytpmd batch <directory> [-name <batch_name>] [-o <output_dir>] [-concurrency <N>]")
 		os.Exit(1)
 	}
 

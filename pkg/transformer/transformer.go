@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/ytp24/ytp24/pkg/core"
+	"github.com/ytp24/ytpMD/pkg/core"
 )
 
 // Transformer implements the core.Transformer interface with agentic optimizations.

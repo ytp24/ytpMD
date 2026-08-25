@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ytp24/ytp24/pkg/core"
+	"github.com/ytp24/ytpMD/pkg/core"
 )
 
 func TestTransformer_Transform(t *testing.T) {

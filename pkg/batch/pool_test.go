@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ytp24/ytp24/pkg/core"
+	"github.com/ytp24/ytpMD/pkg/core"
 )
 
 // MockExtractor simulates PDF extraction for unit tests.

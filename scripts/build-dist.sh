@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
-# ==============================================================================
-# Cross-Platform Binary Release Generator (Linux, Windows, macOS)
-# ==============================================================================
 set -e
 
-VERSION="3.1.0"
+VERSION="3.2.0"
 DIST_DIR="dist"
 
 echo "==> Building cross-platform distribution archives (v${VERSION})..."
@@ -21,19 +18,19 @@ PLATFORMS=(
 for PLATFORM in "${PLATFORMS[@]}"; do
     GOOS="${PLATFORM%/*}"
     GOARCH="${PLATFORM#*/}"
-    OUTPUT_NAME="ytp24-${VERSION}-${GOOS}-${GOARCH}"
+    OUTPUT_NAME="ytpMD-${VERSION}-${GOOS}-${GOARCH}"
     TARGET_DIR="/tmp/${OUTPUT_NAME}"
     
     echo "  --> Compiling for ${GOOS}/${GOARCH}..."
     rm -rf "${TARGET_DIR}"
     mkdir -p "${TARGET_DIR}"
 
-    BINARY="ytp24"
+    BINARY="ytpMD"
     if [ "${GOOS}" = "windows" ]; then
-        BINARY="ytp24.exe"
+        BINARY="ytpMD.exe"
     fi
 
-    CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -ldflags="-s -w" -o "${TARGET_DIR}/${BINARY}" ./cmd/ytp24
+    CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" go build -ldflags="-s -w" -o "${TARGET_DIR}/${BINARY}" ./cmd/ytpMD
     cp README.md LICENSE LEGAL.md "${TARGET_DIR}/"
 
     if [ "${GOOS}" = "windows" ]; then

@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/ytp24/ytp24/pkg/core"
+	"github.com/ytp24/ytpMD/pkg/core"
 )
 
 // ContentFilter implements core.Filter interface.

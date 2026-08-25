@@ -7,8 +7,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/ytp24/ytp24/pkg/core"
-	"github.com/ytp24/ytp24/pkg/transformer"
+	"github.com/ytp24/ytpMD/pkg/core"
+	"github.com/ytp24/ytpMD/pkg/transformer"
 )
 
 // Splitter implements the core.Splitter interface with Agent Manifest generation.

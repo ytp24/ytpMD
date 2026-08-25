@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ytp24/ytp24/pkg/core"
-	"github.com/ytp24/ytp24/pkg/validator"
+	"github.com/ytp24/ytpMD/pkg/core"
+	"github.com/ytp24/ytpMD/pkg/validator"
 )
 
 // ConcurrentBatchEngine implements core.BatchProcessor using a managed Worker Pool.

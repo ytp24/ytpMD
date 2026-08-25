@@ -83,4 +83,4 @@ jobs:
           if [ "${{ matrix.goos }}" = "windows" ]; then
             EXT=".exe"
           fi
-          go build -ldflags="-s -w" -o "ytp24_${{ matrix.goos }}_${{ matrix.goarch }}${EXT}" ./cmd/ytp24
+          go build -ldflags="-s -w" -o "ytpMD_${{ matrix.goos }}_${{ matrix.goarch }}${EXT}" ./cmd/ytpMD
