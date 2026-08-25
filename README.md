@@ -1,94 +1,89 @@
-# 📄 `pdf2md` — High-Performance PDF to Markdown CLI in Go
+# ytpMD [pdf2md] — Production Cloud & Document Pipeline in Go
 
-`pdf2md` is a standalone, fast, and production-grade command-line tool written in Go that extracts text from PDF documents and transforms them into clean, structured GitHub-Flavored Markdown (`.md`).
+`ytpMD` (also invocable as `pdf2md` or `ytp24`) is an enterprise-grade, concurrent CLI tool and Go library designed to transform PDF documents into chapter-aware Markdown notes with zero noise.
 
 ---
 
-## ✨ Key Features
+## 🏛️ Clean Architecture & Design Patterns
 
-- 🚫 **Excludes Non-Usable Sections (Appendix / Index / Glossary / References):**
-  Automatically detects when an Appendix (e.g. `Appendix A`, `Appendix B`), Subject Index, Bibliography, or Glossary begins and cleanly truncates processing so your final Markdown contains only core usable content.
-- 🖼️ **Excludes Images & Binary Assets:**
-  Strips out binary figure references, image placeholders, and messy vector artifacts.
-- 📑 **Excludes Front-Matter Noise:**
-  Skip cover pages, publisher notices, copyright pages, and blank pages using `-skip-front <pages>`.
-- 🔄 **Smart Paragraph Reflow & De-Hyphenation:**
-  Combines split lines into continuous paragraphs and automatically rejoins broken hyphenated words (`archi-\ntecture` -> `architecture`).
-- 🏷️ **Heading & Code Block Detection:**
-  Automatically formats chapter headers (`# Chapter 1`), section headers (`## 1.2 Architecture`), and indented code blocks (```` ``` ````).
-- 🧹 **Header & Footer Stripping:**
-  Eliminates repeated running headers, "Page X of Y", and isolated page numbers.
-- ⚡ **Zero CGo / Native Speed:**
-  Compiled directly into a self-contained Go binary with minimal memory footprint.
+The codebase strictly adheres to **SOLID principles**, the **Standard Go Project Layout**, and established software design patterns:
+
+- **Factory Pattern**: Centralized component instantiation (`NewPDFExtractor`, `NewContentFilter`, `NewTransformer`, `NewSplitter`, `NewConcurrentBatchEngine`).
+- **Strategy / Pipeline Pattern**: Decoupled document processing stages:
+  $$\text{Source PDF} \xrightarrow{\text{Extractor}} \text{Raw Text} \xrightarrow{\text{Filter}} \text{Sanitized Lines} \xrightarrow{\text{Transformer}} \text{Markdown} \xrightarrow{\text{Splitter}} \text{TOC Chapters}$$
+- **Worker Pool (Concurrency Pattern)**: High-throughput batch processing using bounded worker channels and context cancellation (`pkg/batch/pool.go`).
+- **Observer Pattern**: Dynamic progress reporting abstracted through `core.ProgressReporter`, driving the multi-shade teal terminal progress bar.
+- **Dependency Inversion Principle (DIP)**: Concrete engines depend on domain abstractions defined in [`pkg/core/interfaces.go`](./pkg/core/interfaces.go).
+
+---
+
+## 📂 Package Layout
+
+```
+├── cmd/
+│   ├── ytp24/main.go            # Primary CLI entrypoint (invokes pkg/cli.Run)
+│   └── pdf2md/main.go           # Canonical tool alias
+├── pkg/
+│   ├── core/                    # Domain models, entities & interfaces (DIP)
+│   │   ├── interfaces.go
+│   │   └── models.go
+│   ├── batch/                   # Concurrent worker pool engine
+│   │   ├── pool.go
+│   │   └── pool_test.go
+│   ├── extractor/               # PDF extraction implementation
+│   │   └── extractor.go
+│   ├── filter/                  # Noise, appendix & asset removal
+│   │   ├── filter.go
+│   │   └── filter_test.go
+│   ├── splitter/                # Table of Contents & Chapter segmentation
+│   │   ├── splitter.go
+│   │   └── splitter_test.go
+│   ├── transformer/             # Markdown formatting & de-hyphenation
+│   │   ├── transformer.go
+│   │   └── transformer_test.go
+│   ├── ui/                      # Terminal UI, dialogs & teal gradient progress bar
+│   │   ├── dialog.go
+│   │   ├── progressbar.go
+│   │   └── prompt.go
+│   ├── validator/               # Pre-flight dependency & magic byte checks
+│   │   ├── validator.go
+│   │   └── validator_test.go
+│   └── cli/                     # Top-level CLI command routing & panic handler
+│       └── app.go
+├── examples/                    # Test input PDFs & sample batch
+├── Makefile                     # Build, test, format & install automation
+├── LICENSE                      # MIT License
+└── go.mod
+```
 
 ---
 
 ## 🛠️ Build & Installation
 
-### 1. Prerequisites
-Ensure `pdftotext` (Poppler utilities) is installed on your Linux system:
 ```bash
-sudo apt-get install poppler-utils
-```
-
-### 2. Build the Binary
-```bash
+# Clone or navigate to the repository
 cd ~/SHARED/Projects/pdf2md
-go build -o bin/pdf2md ./cmd/pdf2md
-```
 
-### 3. (Optional) Install Globally to `$GOPATH/bin` or `/usr/local/bin`
-```bash
-go install ./cmd/pdf2md
-# or
-sudo cp bin/pdf2md /usr/local/bin/
+# Format, test, and install globally to ~/.local/bin/
+make install
 ```
 
 ---
 
-## 🚀 CLI Usage & Commands
+## 🚀 Usage
 
-### 1. Convert a Single PDF
+### 1. Interactive Mode
+Run without arguments to launch the wizard with native GUI file selection:
 ```bash
-# Convert with automatic appendix and noise removal
-./bin/pdf2md convert input.pdf -o output.md
-
-# Skip first 4 pages (e.g. Cover, Copyright, TOC)
-./bin/pdf2md convert book.pdf -o book.md -skip-front 4
-
-# Extract specific page range
-./bin/pdf2md convert guide.pdf -o guide.md -start-page 10 -end-page 85
+ytp24
 ```
 
-### 2. Batch Convert a Directory of PDFs
+### 2. Single Document Conversion
 ```bash
-# Convert all PDFs in a folder to a target markdown folder
-./bin/pdf2md batch /path/to/pdfs/ -o /path/to/markdown/ -r
+ytp24 convert book.pdf -skip-front 3
 ```
 
-### 3. Check Version
+### 3. Concurrent Batch Processing
 ```bash
-./bin/pdf2md version
-```
-
----
-
-## ⚙️ Options & Flags Reference
-
-| Flag | Description | Default |
-| :--- | :--- | :--- |
-| `-o`, `-output <path>` | Destination `.md` file path | `<input_name>.md` |
-| `-skip-front <N>` | Number of initial pages to skip (covers/TOC) | `0` |
-| `-start-page <N>` | Start page number (1-indexed) | `1` |
-| `-end-page <N>` | Stop converting at this page number | `0` (End of file) |
-| `-keep-appendix` | Include appendix, index, and bibliography pages | `false` (Excluded by default) |
-| `-no-reflow` | Disable paragraph line reflow | `false` |
-| `-r`, `-recursive` | Recursively process subdirectories in batch mode | `false` |
-
----
-
-## 🧪 Running Unit Tests
-```bash
-cd ~/SHARED/Projects/pdf2md
-go test -v ./...
+ytp24 batch ~/Downloads/PDFs/ -name CloudEngineering -concurrency 6
 ```
