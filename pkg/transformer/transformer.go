@@ -5,14 +5,16 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/devops/pdf2md/pkg/models"
+	"github.com/devops/pdf2md/pkg/core"
 )
 
+// Transformer implements the core.Transformer interface.
 type Transformer struct {
-	config models.Config
+	config core.Config
 }
 
-func NewTransformer(cfg models.Config) *Transformer {
+// NewTransformer initializes a new Transformer using Factory Pattern.
+func NewTransformer(cfg core.Config) *Transformer {
 	return &Transformer{config: cfg}
 }
 
@@ -113,7 +115,6 @@ func (t *Transformer) formatHeadings(lines []string) []string {
 			continue
 		}
 
-		// ALL CAPS title detection
 		if isAllUpper(trimmed) && len(trimmed) > 4 && len(trimmed) < 50 && !strings.HasSuffix(trimmed, ".") {
 			result = append(result, "\n## "+toTitle(trimmed)+"\n")
 			continue
@@ -211,7 +212,6 @@ func (t *Transformer) joinLines(lines []string) string {
 		} else {
 			curr := sb.String()
 			if strings.HasSuffix(curr, "-") && !strings.HasSuffix(curr, " -") {
-				// Rejoin hyphenated word
 				trimmed := strings.TrimSuffix(curr, "-")
 				sb.Reset()
 				sb.WriteString(trimmed + l)

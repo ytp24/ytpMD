@@ -1,6 +1,7 @@
-package extractor
+package batch
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,30 +10,39 @@ import (
 	"sync"
 	"time"
 
-	"github.com/devops/pdf2md/pkg/models"
-	"github.com/devops/pdf2md/pkg/ui"
+	"github.com/devops/pdf2md/pkg/core"
 	"github.com/devops/pdf2md/pkg/validator"
 )
 
-// ProcessBatchConcurrently runs concurrent worker goroutines to process PDF files in parallel.
-func (e *PDFExtractor) ProcessBatchConcurrently(
+// ConcurrentBatchEngine implements core.BatchProcessor using a managed Worker Pool.
+type ConcurrentBatchEngine struct {
+	extractor core.Extractor
+}
+
+// NewConcurrentBatchEngine initializes a new ConcurrentBatchEngine.
+func NewConcurrentBatchEngine(ext core.Extractor) *ConcurrentBatchEngine {
+	return &ConcurrentBatchEngine{extractor: ext}
+}
+
+// ProcessBatch runs concurrent worker goroutines to process PDF files in parallel.
+func (b *ConcurrentBatchEngine) ProcessBatch(
+	ctx context.Context,
 	pdfFiles []string,
 	targetBaseDir string,
 	batchName string,
 	concurrency int,
-) (*models.BatchResult, error) {
+	reporter core.ProgressReporter,
+) (*core.BatchResult, error) {
 	if len(pdfFiles) == 0 {
 		return nil, fmt.Errorf("no PDF files provided for batch processing")
 	}
 
 	startTime := time.Now()
 
-	// Default batch name to "batch" if empty
 	if strings.TrimSpace(batchName) == "" {
 		batchName = "batch"
 	}
 
-	// Destination directory: ~/Documents/ytp24/<batch_name>/
 	cleanBaseDir := validator.ExpandPath(targetBaseDir)
 	batchTargetDir := filepath.Join(cleanBaseDir, batchName)
 	if err := os.MkdirAll(batchTargetDir, 0755); err != nil {
@@ -50,14 +60,13 @@ func (e *PDFExtractor) ProcessBatchConcurrently(
 	}
 
 	totalFiles := len(pdfFiles)
-	bar := ui.NewProgressBar(totalFiles, "Converting Batch")
 
 	type job struct {
 		path string
 	}
 
 	jobs := make(chan job, totalFiles)
-	resultsChan := make(chan models.FileResult, totalFiles)
+	resultsChan := make(chan core.FileResult, totalFiles)
 
 	var wg sync.WaitGroup
 
@@ -67,19 +76,23 @@ func (e *PDFExtractor) ProcessBatchConcurrently(
 		go func() {
 			defer wg.Done()
 			for j := range jobs {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
 				pdfName := strings.TrimSuffix(filepath.Base(j.path), filepath.Ext(j.path))
-				
-				// Extract to dedicated chapter folder under batchTargetDir
-				splitRes, err := e.ExtractToDirectory(j.path, batchTargetDir)
+				splitRes, err := b.extractor.ExtractToDirectory(ctx, j.path, batchTargetDir)
 				if err != nil {
-					resultsChan <- models.FileResult{
+					resultsChan <- core.FileResult{
 						PDFPath: j.path,
 						PDFName: pdfName,
 						Success: false,
 						Error:   err,
 					}
 				} else {
-					resultsChan <- models.FileResult{
+					resultsChan <- core.FileResult{
 						PDFPath:       j.path,
 						PDFName:       pdfName,
 						Success:       true,
@@ -88,7 +101,9 @@ func (e *PDFExtractor) ProcessBatchConcurrently(
 					}
 				}
 
-				bar.Increment(filepath.Base(j.path))
+				if reporter != nil {
+					reporter.Increment(filepath.Base(j.path))
+				}
 			}
 		}()
 	}
@@ -99,14 +114,16 @@ func (e *PDFExtractor) ProcessBatchConcurrently(
 	}
 	close(jobs)
 
-	// Wait for workers to finish in a separate goroutine
+	// Wait for workers to complete
 	go func() {
 		wg.Wait()
 		close(resultsChan)
-		bar.Finish()
+		if reporter != nil {
+			reporter.Finish()
+		}
 	}()
 
-	var allResults []models.FileResult
+	var allResults []core.FileResult
 	processedCount := 0
 	failedCount := 0
 
@@ -119,10 +136,9 @@ func (e *PDFExtractor) ProcessBatchConcurrently(
 		}
 	}
 
-	// Generate Master Batch README.md Index
-	e.generateBatchMasterIndex(batchTargetDir, batchName, allResults, time.Since(startTime))
+	b.generateBatchMasterIndex(batchTargetDir, batchName, allResults, time.Since(startTime))
 
-	return &models.BatchResult{
+	return &core.BatchResult{
 		BatchName:       batchName,
 		TargetDirectory: batchTargetDir,
 		TotalFiles:      totalFiles,
@@ -133,10 +149,10 @@ func (e *PDFExtractor) ProcessBatchConcurrently(
 	}, nil
 }
 
-func (e *PDFExtractor) generateBatchMasterIndex(
+func (b *ConcurrentBatchEngine) generateBatchMasterIndex(
 	batchDir string,
 	batchName string,
-	results []models.FileResult,
+	results []core.FileResult,
 	duration time.Duration,
 ) {
 	var sb strings.Builder

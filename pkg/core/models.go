@@ -1,11 +1,11 @@
-package models
+package core
 
 import (
 	"path/filepath"
 	"time"
 )
 
-// Config defines the extraction and transformation settings.
+// Config defines the extraction, transformation, and batch settings.
 type Config struct {
 	StartPage             int
 	EndPage               int
@@ -23,11 +23,11 @@ type Config struct {
 	StopPatterns          []string
 }
 
-// DefaultConfig returns optimal production defaults.
+// DefaultConfig returns optimal, production-grade defaults.
 func DefaultConfig() Config {
 	return Config{
 		StartPage:             1,
-		EndPage:               0, // 0 = all pages
+		EndPage:               0,
 		SkipFrontMatterPages:  0,
 		ExcludeAppendix:       true,
 		ExcludeIndex:          true,
@@ -52,7 +52,7 @@ func DefaultConfig() Config {
 	}
 }
 
-// Chapter represents an individual section or chapter extracted from the PDF.
+// Chapter represents an individual section or chapter extracted from a document.
 type Chapter struct {
 	Index     int
 	Title     string
@@ -63,7 +63,30 @@ type Chapter struct {
 	Content   string
 }
 
-// SplitResult represents the multi-file TOC output.
+// PDFPage represents an individual page extracted from the PDF.
+type PDFPage struct {
+	PageNumber    int
+	RawText       string
+	IsFilteredOut bool
+	FilterReason  string
+	Lines         []string
+}
+
+// ProcessedDocument represents the single-file output.
+type ProcessedDocument struct {
+	SourcePath      string
+	TotalPages      int
+	ProcessedPages  int
+	SkippedPages    int
+	MarkdownContent string
+}
+
+// GetFilename returns the base name of the source PDF.
+func (d *ProcessedDocument) GetFilename() string {
+	return filepath.Base(d.SourcePath)
+}
+
+// SplitResult represents the chapter-based directory output.
 type SplitResult struct {
 	SourcePDF       string
 	PDFName         string
@@ -85,7 +108,7 @@ type FileResult struct {
 	TotalPages    int
 }
 
-// BatchResult holds aggregated batch execution metrics.
+// BatchResult holds aggregated metrics for multi-document batch runs.
 type BatchResult struct {
 	BatchName       string
 	TargetDirectory string
@@ -94,27 +117,4 @@ type BatchResult struct {
 	FailedFiles     int
 	Results         []FileResult
 	Duration        time.Duration
-}
-
-// PDFPage represents an individual page extracted from the PDF.
-type PDFPage struct {
-	PageNumber    int
-	RawText       string
-	IsFilteredOut bool
-	FilterReason  string
-	Lines         []string
-}
-
-// ProcessedDocument represents the final transformed output.
-type ProcessedDocument struct {
-	SourcePath      string
-	TotalPages      int
-	ProcessedPages  int
-	SkippedPages    int
-	MarkdownContent string
-}
-
-// GetFilename returns the base name of the source PDF.
-func (d *ProcessedDocument) GetFilename() string {
-	return filepath.Base(d.SourcePath)
 }

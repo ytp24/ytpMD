@@ -4,16 +4,18 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/devops/pdf2md/pkg/models"
+	"github.com/devops/pdf2md/pkg/core"
 )
 
+// ContentFilter implements core.Filter interface.
 type ContentFilter struct {
-	config               models.Config
+	config               core.Config
 	compiledStopPatterns []*regexp.Regexp
 	headerFooterPatterns []*regexp.Regexp
 }
 
-func NewContentFilter(cfg models.Config) *ContentFilter {
+// NewContentFilter initializes a new ContentFilter using Factory Pattern.
+func NewContentFilter(cfg core.Config) *ContentFilter {
 	var stopPatterns []*regexp.Regexp
 	for _, p := range cfg.StopPatterns {
 		if re, err := regexp.Compile(p); err == nil {

@@ -289,7 +289,7 @@ func RunInteractiveWizard(version string) (*InteractiveOptions, error) {
 	fmt.Printf("    %s1.%s Single PDF File %s(default)%s\n", TealBright, Reset, ColorGray, Reset)
 	fmt.Printf("    %s2.%s Batch Directory of PDFs %s(Concurrent Goroutines)%s\n", TealBright, Reset, ColorGray, Reset)
 	fmt.Printf("%s%sChoice [1]:%s ", TealLight, Bold, Reset)
-	
+
 	modeInput, _ := reader.ReadString('\n')
 	modeChoice := strings.TrimSpace(modeInput)
 

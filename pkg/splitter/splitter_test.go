@@ -4,14 +4,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/devops/pdf2md/pkg/models"
+	"github.com/devops/pdf2md/pkg/core"
 )
 
 func TestSplitter_SplitIntoChapters(t *testing.T) {
-	cfg := models.DefaultConfig()
+	cfg := core.DefaultConfig()
 	s := NewSplitter(cfg)
 
-	pages := []models.PDFPage{
+	pages := []core.PDFPage{
 		{
 			PageNumber: 1,
 			Lines: []string{

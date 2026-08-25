@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/devops/pdf2md/pkg/models"
+	"github.com/devops/pdf2md/pkg/core"
 )
 
 func TestFilter_ShouldStop(t *testing.T) {
-	cfg := models.DefaultConfig()
+	cfg := core.DefaultConfig()
 	f := NewContentFilter(cfg)
 
 	// Appendix test
@@ -34,7 +34,7 @@ func TestFilter_ShouldStop(t *testing.T) {
 }
 
 func TestFilter_CleanPageLines(t *testing.T) {
-	cfg := models.DefaultConfig()
+	cfg := core.DefaultConfig()
 	f := NewContentFilter(cfg)
 
 	raw := "Page 12 of 45\nCopyright 2026 Corporation\n\nSome important content [image: logo.png]\nFigure 1.2: Diagram\n99"

@@ -6,16 +6,18 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/devops/pdf2md/pkg/models"
+	"github.com/devops/pdf2md/pkg/core"
 	"github.com/devops/pdf2md/pkg/transformer"
 )
 
+// Splitter implements the core.Splitter interface.
 type Splitter struct {
-	config      models.Config
-	transformer *transformer.Transformer
+	config      core.Config
+	transformer core.Transformer
 }
 
-func NewSplitter(cfg models.Config) *Splitter {
+// NewSplitter initializes a new Splitter using Factory Pattern.
+func NewSplitter(cfg core.Config) *Splitter {
 	return &Splitter{
 		config:      cfg,
 		transformer: transformer.NewTransformer(cfg),
@@ -23,9 +25,9 @@ func NewSplitter(cfg models.Config) *Splitter {
 }
 
 // SplitIntoChapters groups extracted page lines into distinct chapter structures.
-func (s *Splitter) SplitIntoChapters(pages []models.PDFPage, pdfTitle string) []models.Chapter {
-	var chapters []models.Chapter
-	var currentChapter *models.Chapter
+func (s *Splitter) SplitIntoChapters(pages []core.PDFPage, pdfTitle string) []core.Chapter {
+	var chapters []core.Chapter
+	var currentChapter *core.Chapter
 
 	chapterHeaderPattern := regexp.MustCompile(`(?i)^(CHAPTER\s+\d+|PART\s+[IVXLCDM]+|MODULE\s+\d+|SECTION\s+\d+)[:.]?\s*(.*)$`)
 	numberedHeadingPattern := regexp.MustCompile(`^(\d+)\.\s+([A-Z][A-Za-z0-9\s,-]{3,50})$`)
@@ -46,7 +48,6 @@ func (s *Splitter) SplitIntoChapters(pages []models.PDFPage, pdfTitle string) []
 				continue
 			}
 
-			// Check if line represents a new chapter start
 			isNewChapter := false
 			var chapterTitle string
 
@@ -70,7 +71,7 @@ func (s *Splitter) SplitIntoChapters(pages []models.PDFPage, pdfTitle string) []
 				slug := sanitizeSlug(chapterTitle)
 				filename := fmt.Sprintf("%02d_%s.md", chapterIndex, slug)
 
-				currentChapter = &models.Chapter{
+				currentChapter = &core.Chapter{
 					Index:     chapterIndex,
 					Title:     chapterTitle,
 					Slug:      slug,
@@ -81,7 +82,7 @@ func (s *Splitter) SplitIntoChapters(pages []models.PDFPage, pdfTitle string) []
 				chapterIndex++
 			} else {
 				if currentChapter == nil {
-					currentChapter = &models.Chapter{
+					currentChapter = &core.Chapter{
 						Index:     chapterIndex,
 						Title:     "Introduction & Overview",
 						Slug:      "introduction_and_overview",
@@ -109,7 +110,7 @@ func (s *Splitter) SplitIntoChapters(pages []models.PDFPage, pdfTitle string) []
 			}
 		}
 		content := s.transformer.Transform([][]string{allLines})
-		chapters = append(chapters, models.Chapter{
+		chapters = append(chapters, core.Chapter{
 			Index:     1,
 			Title:     pdfTitle,
 			Slug:      sanitizeSlug(pdfTitle),
@@ -124,7 +125,7 @@ func (s *Splitter) SplitIntoChapters(pages []models.PDFPage, pdfTitle string) []
 }
 
 // GenerateTOCIndex creates a master README.md index linking to each chapter file.
-func (s *Splitter) GenerateTOCIndex(pdfName string, chapters []models.Chapter, totalPages int) string {
+func (s *Splitter) GenerateTOCIndex(pdfName string, chapters []core.Chapter, totalPages int) string {
 	var sb strings.Builder
 
 	cleanName := strings.ReplaceAll(pdfName, "_", " ")

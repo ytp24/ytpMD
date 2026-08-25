@@ -11,21 +11,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/devops/pdf2md/pkg/core"
 	"github.com/devops/pdf2md/pkg/filter"
-	"github.com/devops/pdf2md/pkg/models"
 	"github.com/devops/pdf2md/pkg/splitter"
 	"github.com/devops/pdf2md/pkg/transformer"
 	"github.com/devops/pdf2md/pkg/validator"
 )
 
+// PDFExtractor implements the core.Extractor interface.
 type PDFExtractor struct {
-	config      models.Config
-	filter      *filter.ContentFilter
-	transformer *transformer.Transformer
-	splitter    *splitter.Splitter
+	config      core.Config
+	filter      core.Filter
+	transformer core.Transformer
+	splitter    core.Splitter
 }
 
-func NewPDFExtractor(cfg models.Config) *PDFExtractor {
+// NewPDFExtractor initializes a new PDFExtractor using Factory Pattern.
+func NewPDFExtractor(cfg core.Config) *PDFExtractor {
 	return &PDFExtractor{
 		config:      cfg,
 		filter:      filter.NewContentFilter(cfg),
@@ -35,8 +37,7 @@ func NewPDFExtractor(cfg models.Config) *PDFExtractor {
 }
 
 // ExtractToDirectory extracts all chapters as individual markdown files inside a directory named after the PDF.
-func (e *PDFExtractor) ExtractToDirectory(pdfPath string, targetBaseDir string) (result *models.SplitResult, finalErr error) {
-	// Defensive panic recovery
+func (e *PDFExtractor) ExtractToDirectory(ctx context.Context, pdfPath string, targetBaseDir string) (result *core.SplitResult, finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("internal processing error: %v", r)
@@ -56,12 +57,12 @@ func (e *PDFExtractor) ExtractToDirectory(pdfPath string, targetBaseDir string) 
 	pdfBaseName := strings.TrimSuffix(filepath.Base(absPath), filepath.Ext(absPath))
 	targetDir := filepath.Join(cleanBaseDir, pdfBaseName)
 
-	totalPages, _ := e.getPageCount(absPath)
+	totalPages, _ := e.getPageCount(ctx, absPath)
 	if totalPages <= 0 {
 		totalPages = 1
 	}
 
-	pages, err := e.extractPages(absPath)
+	pages, err := e.extractPages(ctx, absPath)
 	if err != nil {
 		return nil, err
 	}
@@ -70,21 +71,25 @@ func (e *PDFExtractor) ExtractToDirectory(pdfPath string, targetBaseDir string) 
 		return nil, fmt.Errorf("no content could be extracted from '%s'", filepath.Base(absPath))
 	}
 
-	var processedPages []models.PDFPage
+	var processedPages []core.PDFPage
 	processedCount := 0
 	totalCharsExtracted := 0
 
 	for i := range pages {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
 		page := &pages[i]
 
-		// Skip front matter pages
 		if page.PageNumber <= e.config.SkipFrontMatterPages {
 			page.IsFilteredOut = true
 			page.FilterReason = fmt.Sprintf("Skipped front matter page <= %d", e.config.SkipFrontMatterPages)
 			continue
 		}
 
-		// Page range bounds
 		if page.PageNumber < e.config.StartPage {
 			page.IsFilteredOut = true
 			continue
@@ -94,14 +99,12 @@ func (e *PDFExtractor) ExtractToDirectory(pdfPath string, targetBaseDir string) 
 			break
 		}
 
-		// Appendix / Index stop filter
 		if shouldStop, reason := e.filter.ShouldStop(page.RawText); shouldStop {
 			page.IsFilteredOut = true
 			page.FilterReason = reason
-			break // Cease further page extractions
+			break
 		}
 
-		// Clean lines
 		page.Lines = e.filter.CleanPageLines(page.RawText)
 		for _, l := range page.Lines {
 			totalCharsExtracted += len(strings.TrimSpace(l))
@@ -115,16 +118,13 @@ func (e *PDFExtractor) ExtractToDirectory(pdfPath string, targetBaseDir string) 
 		return nil, fmt.Errorf("PDF contains no readable text layers (likely an image-only scanned document). OCR preprocessing is required.")
 	}
 
-	// Split into chapters
 	chapters := e.splitter.SplitIntoChapters(processedPages, pdfBaseName)
 	tocIndex := e.splitter.GenerateTOCIndex(pdfBaseName, chapters, totalPages)
 
-	// Ensure destination folder exists
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create directory %s: %w", targetDir, err)
 	}
 
-	// Write individual chapter .md files
 	for _, ch := range chapters {
 		chPath := filepath.Join(targetDir, ch.Filename)
 		if err := os.WriteFile(chPath, []byte(ch.Content), 0644); err != nil {
@@ -132,13 +132,12 @@ func (e *PDFExtractor) ExtractToDirectory(pdfPath string, targetBaseDir string) 
 		}
 	}
 
-	// Write master README.md (Table of Contents)
 	readmePath := filepath.Join(targetDir, "README.md")
 	if err := os.WriteFile(readmePath, []byte(tocIndex), 0644); err != nil {
 		return nil, fmt.Errorf("failed to write README.md: %w", err)
 	}
 
-	return &models.SplitResult{
+	return &core.SplitResult{
 		SourcePDF:       absPath,
 		PDFName:         pdfBaseName,
 		TargetDirectory: targetDir,
@@ -151,7 +150,7 @@ func (e *PDFExtractor) ExtractToDirectory(pdfPath string, targetBaseDir string) 
 }
 
 // ExtractFile processes a single PDF file and returns a single concatenated markdown document.
-func (e *PDFExtractor) ExtractFile(pdfPath string) (doc *models.ProcessedDocument, finalErr error) {
+func (e *PDFExtractor) ExtractFile(ctx context.Context, pdfPath string) (doc *core.ProcessedDocument, finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("internal processing error: %v", r)
@@ -163,12 +162,12 @@ func (e *PDFExtractor) ExtractFile(pdfPath string) (doc *models.ProcessedDocumen
 		return nil, err
 	}
 
-	totalPages, _ := e.getPageCount(absPath)
+	totalPages, _ := e.getPageCount(ctx, absPath)
 	if totalPages <= 0 {
 		totalPages = 1
 	}
 
-	pages, err := e.extractPages(absPath)
+	pages, err := e.extractPages(ctx, absPath)
 	if err != nil {
 		return nil, err
 	}
@@ -177,6 +176,12 @@ func (e *PDFExtractor) ExtractFile(pdfPath string) (doc *models.ProcessedDocumen
 	processedCount := 0
 
 	for _, page := range pages {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
 		if page.PageNumber <= e.config.SkipFrontMatterPages {
 			continue
 		}
@@ -197,7 +202,7 @@ func (e *PDFExtractor) ExtractFile(pdfPath string) (doc *models.ProcessedDocumen
 
 	markdownContent := e.transformer.Transform(cleanedPagesLines)
 
-	return &models.ProcessedDocument{
+	return &core.ProcessedDocument{
 		SourcePath:      absPath,
 		TotalPages:      totalPages,
 		ProcessedPages:  processedCount,
@@ -206,11 +211,11 @@ func (e *PDFExtractor) ExtractFile(pdfPath string) (doc *models.ProcessedDocumen
 	}, nil
 }
 
-func (e *PDFExtractor) getPageCount(pdfPath string) (int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func (e *PDFExtractor) getPageCount(ctx context.Context, pdfPath string) (int, error) {
+	reqCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "pdfinfo", pdfPath)
+	cmd := exec.CommandContext(reqCtx, "pdfinfo", pdfPath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 
@@ -228,7 +233,7 @@ func (e *PDFExtractor) getPageCount(pdfPath string) (int, error) {
 		}
 	}
 
-	pages, err := e.extractPages(pdfPath)
+	pages, err := e.extractPages(ctx, pdfPath)
 	if err == nil && len(pages) > 0 {
 		return len(pages), nil
 	}
@@ -236,15 +241,15 @@ func (e *PDFExtractor) getPageCount(pdfPath string) (int, error) {
 	return 1, nil
 }
 
-func (e *PDFExtractor) extractPages(pdfPath string) ([]models.PDFPage, error) {
+func (e *PDFExtractor) extractPages(ctx context.Context, pdfPath string) ([]core.PDFPage, error) {
 	if err := validator.CheckDependencies(); err != nil {
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	reqCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "pdftotext", "-layout", pdfPath, "-")
+	cmd := exec.CommandContext(reqCtx, "pdftotext", "-layout", pdfPath, "-")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -260,15 +265,15 @@ func (e *PDFExtractor) extractPages(pdfPath string) ([]models.PDFPage, error) {
 		return nil, fmt.Errorf("failed to process PDF: %s (%s)", err, strings.TrimSpace(stderr.String()))
 	}
 
-	rawPages := strings.Split(stdout.String(), "\x0c") // 0x0C = Form Feed
-	var pages []models.PDFPage
+	rawPages := strings.Split(stdout.String(), "\x0c")
+	var pages []core.PDFPage
 
 	for idx, text := range rawPages {
 		trimmed := strings.TrimSpace(text)
 		if idx == len(rawPages)-1 && trimmed == "" {
 			continue
 		}
-		pages = append(pages, models.PDFPage{
+		pages = append(pages, core.PDFPage{
 			PageNumber: idx + 1,
 			RawText:    text,
 		})

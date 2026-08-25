@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/devops/pdf2md/pkg/models"
+	"github.com/devops/pdf2md/pkg/core"
 )
 
 func TestTransformer_Transform(t *testing.T) {
-	cfg := models.DefaultConfig()
+	cfg := core.DefaultConfig()
 	tr := NewTransformer(cfg)
 
 	input := [][]string{
