@@ -31,6 +31,9 @@ const (
 	ColorGray   = "\033[38;2;148;163;184m"
 )
 
+// DefaultDestinationRoot is the standard base output folder for all extracted notes.
+const DefaultDestinationRoot = "~/Documents/ytp24"
+
 // InteractiveOptions holds user-selected parameters from the interactive wizard.
 type InteractiveOptions struct {
 	PDFPath         string
@@ -103,7 +106,7 @@ func PromptPDFFile(reader *bufio.Reader) (string, error) {
 	}
 }
 
-// PromptDestinationDir requests destination folder, defaulting to ~/Downloads.
+// PromptDestinationDir requests destination folder, defaulting to ~/Documents/ytp24.
 func PromptDestinationDir(reader *bufio.Reader, defaultDir string) (string, error) {
 	defaultExpanded := validator.ExpandPath(defaultDir)
 	for {
@@ -111,17 +114,16 @@ func PromptDestinationDir(reader *bufio.Reader, defaultDir string) (string, erro
 			TealLight, Bold, Italic, Reset, TealBright, Italic, Reset, ColorGray, defaultDir, Reset)
 		input, err := reader.ReadString('\n')
 		if err != nil {
+			_ = os.MkdirAll(defaultExpanded, 0755)
 			return defaultExpanded, nil
 		}
 
 		trimmed := strings.TrimSpace(input)
 		trimmed = strings.Trim(trimmed, "\"'")
 
-		// Default to ~/Downloads on Enter
+		// Default to ~/Documents/ytp24 on Enter
 		if trimmed == "" {
-			if err := validator.ValidateDirectory(defaultExpanded); err == nil {
-				return defaultExpanded, nil
-			}
+			_ = os.MkdirAll(defaultExpanded, 0755)
 			return defaultExpanded, nil
 		}
 
@@ -139,6 +141,7 @@ func PromptDestinationDir(reader *bufio.Reader, defaultDir string) (string, erro
 				}
 			} else {
 				fmt.Printf("%s[!] Directory selection cancelled. Using default: %s%s\n", ColorYellow, defaultDir, Reset)
+				_ = os.MkdirAll(defaultExpanded, 0755)
 				return defaultExpanded, nil
 			}
 			continue
@@ -221,9 +224,8 @@ func RunInteractiveWizard(version string) (*InteractiveOptions, error) {
 		return nil, err
 	}
 
-	// 2. Ask for destination directory (Default: ~/Downloads)
-	defaultDownloads := "~/Downloads"
-	destDir, err := PromptDestinationDir(reader, defaultDownloads)
+	// 2. Ask for destination directory (Default: ~/Documents/ytp24)
+	destDir, err := PromptDestinationDir(reader, DefaultDestinationRoot)
 	if err != nil {
 		return nil, err
 	}
