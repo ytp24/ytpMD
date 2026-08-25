@@ -11,19 +11,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devops/pdf2md/pkg/core"
-	"github.com/devops/pdf2md/pkg/filter"
-	"github.com/devops/pdf2md/pkg/splitter"
-	"github.com/devops/pdf2md/pkg/transformer"
-	"github.com/devops/pdf2md/pkg/validator"
+	"github.com/ytp24/ytp24/pkg/core"
+	"github.com/ytp24/ytp24/pkg/filter"
+	"github.com/ytp24/ytp24/pkg/splitter"
+	"github.com/ytp24/ytp24/pkg/transformer"
+	"github.com/ytp24/ytp24/pkg/validator"
 )
 
 // PDFExtractor implements the core.Extractor interface.
 type PDFExtractor struct {
 	config      core.Config
-	filter      core.Filter
-	transformer core.Transformer
-	splitter    core.Splitter
+	filter      *filter.ContentFilter
+	transformer *transformer.Transformer
+	splitter    *splitter.Splitter
 }
 
 // NewPDFExtractor initializes a new PDFExtractor using Factory Pattern.
@@ -36,7 +36,7 @@ func NewPDFExtractor(cfg core.Config) *PDFExtractor {
 	}
 }
 
-// ExtractToDirectory extracts all chapters as individual markdown files inside a directory named after the PDF.
+// ExtractToDirectory extracts all chapters as individual agent-ready markdown files inside a directory named after the PDF.
 func (e *PDFExtractor) ExtractToDirectory(ctx context.Context, pdfPath string, targetBaseDir string) (result *core.SplitResult, finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -120,21 +120,36 @@ func (e *PDFExtractor) ExtractToDirectory(ctx context.Context, pdfPath string, t
 
 	chapters := e.splitter.SplitIntoChapters(processedPages, pdfBaseName)
 	tocIndex := e.splitter.GenerateTOCIndex(pdfBaseName, chapters, totalPages)
+	agentManifest := e.splitter.GenerateAgentManifest(pdfBaseName, chapters, totalPages)
 
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create directory %s: %w", targetDir, err)
 	}
 
+	totalWords := 0
+	totalTokens := 0
+
+	// Write individual chapter files formatted with YAML frontmatter and breadcrumbs
 	for _, ch := range chapters {
+		fullContent := e.transformer.GenerateChapterMarkdown(ch, filepath.Base(absPath), len(chapters))
 		chPath := filepath.Join(targetDir, ch.Filename)
-		if err := os.WriteFile(chPath, []byte(ch.Content), 0644); err != nil {
+		if err := os.WriteFile(chPath, []byte(fullContent), 0644); err != nil {
 			return nil, fmt.Errorf("failed to write chapter file %s: %w", chPath, err)
 		}
+		totalWords += ch.WordCount
+		totalTokens += ch.TokenEstimate
 	}
 
+	// Write human-facing README.md
 	readmePath := filepath.Join(targetDir, "README.md")
 	if err := os.WriteFile(readmePath, []byte(tocIndex), 0644); err != nil {
 		return nil, fmt.Errorf("failed to write README.md: %w", err)
+	}
+
+	// Write AI Agent Ingestion Manifest AGENTS.md
+	agentsPath := filepath.Join(targetDir, "AGENTS.md")
+	if err := os.WriteFile(agentsPath, []byte(agentManifest), 0644); err != nil {
+		return nil, fmt.Errorf("failed to write AGENTS.md: %w", err)
 	}
 
 	return &core.SplitResult{
@@ -142,10 +157,13 @@ func (e *PDFExtractor) ExtractToDirectory(ctx context.Context, pdfPath string, t
 		PDFName:         pdfBaseName,
 		TargetDirectory: targetDir,
 		TOCContent:      tocIndex,
+		AgentManifest:   agentManifest,
 		Chapters:        chapters,
 		TotalPages:      totalPages,
 		ProcessedPages:  processedCount,
 		SkippedPages:    totalPages - processedCount,
+		TotalWords:      totalWords,
+		TotalTokens:     totalTokens,
 	}, nil
 }
 
@@ -201,12 +219,16 @@ func (e *PDFExtractor) ExtractFile(ctx context.Context, pdfPath string) (doc *co
 	}
 
 	markdownContent := e.transformer.Transform(cleanedPagesLines)
+	words := len(strings.Fields(markdownContent))
+	tokens := int(float64(len(markdownContent)) / 3.8)
 
 	return &core.ProcessedDocument{
 		SourcePath:      absPath,
 		TotalPages:      totalPages,
 		ProcessedPages:  processedCount,
 		SkippedPages:    totalPages - processedCount,
+		WordCount:       words,
+		TokenEstimate:   tokens,
 		MarkdownContent: markdownContent,
 	}, nil
 }

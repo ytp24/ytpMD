@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 540" width="100%" height="100%">
+  <defs>
+    <linearGradient id="tealGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F766E" />
+      <stop offset="35%" stop-color="#0D9488" />
+      <stop offset="70%" stop-color="#14B8A6" />
+      <stop offset="100%" stop-color="#2DD4BF" />
+    </linearGradient>
+    <linearGradient id="barGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0D9488" />
+      <stop offset="50%" stop-color="#14B8A6" />
+      <stop offset="100%" stop-color="#5EEAD4" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <style>
+    .terminal-bg { fill: #0D1117; rx: 10px; stroke: #30363D; stroke-width: 1.5; }
+    .header-bar { fill: #161B22; }
+    .title-text { fill: #8B949E; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 13px; font-weight: 600; }
+    .code-text { font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace; font-size: 13.5px; }
+    .teal-deep { fill: #0D9488; }
+    .teal-bright { fill: #14B8A6; font-weight: bold; }
+    .teal-light { fill: #2DD4BF; font-weight: bold; font-style: italic; }
+    .teal-pale { fill: #5EEAD4; }
+    .white-bold { fill: #F0F6FC; font-weight: bold; }
+    .gray { fill: #8B949E; font-style: italic; }
+    .dim-gray { fill: #484F58; }
+    .yellow { fill: #FBBF24; }
+  </style>
+
+  <!-- Terminal Window Background -->
+  <rect width="920" height="540" class="terminal-bg" />
+  
+  <!-- Header Bar -->
+  <path d="M 0 10 Q 0 0 10 0 L 910 0 Q 920 0 920 10 L 920 38 L 0 38 Z" class="header-bar" />
+  
+  <!-- Terminal Window Buttons -->
+  <circle cx="20" cy="19" r="6" fill="#FF5F56" />
+  <circle cx="40" cy="19" r="6" fill="#FFBD2E" />
+  <circle cx="60" cy="19" r="6" fill="#27C93F" />
+  
+  <!-- Header Title -->
+  <text x="460" y="24" text-anchor="middle" class="title-text">ytp24 — ytpMD [pdf2md] v3.1.0 (Agentic Document Pipeline)</text>
+
+  <!-- Terminal Content -->
+  <g transform="translate(30, 70)">
+    <!-- Command Invocation -->
+    <text x="0" y="0" class="code-text">
+      <tspan class="teal-bright">$</tspan> <tspan class="white-bold">ytp24</tspan>
+    </text>
+
+    <!-- ASCII Logo -->
+    <text x="0" y="30" class="code-text teal-deep" font-weight="bold">  ██╗   ██╗████████╗██████╗ ███╗   ███╗██████╗ </text>
+    <text x="0" y="46" class="code-text teal-deep" font-weight="bold">  ╚██╗ ██╔╝╚══██╔══╝██╔══██╗████╗ ████║██╔══██╗</text>
+    <text x="0" y="62" class="code-text teal-bright" font-weight="bold">   ╚████╔╝    ██║   ██████╔╝██╔████╔██║██║  ██║</text>
+    <text x="0" y="78" class="code-text teal-bright" font-weight="bold">    ╚██╔╝     ██║   ██╔═══╝ ██║╚██╔╝██║██║  ██║</text>
+    <text x="0" y="94" class="code-text teal-light" font-weight="bold">     ██║      ██║   ██║     ██║ ╚═╝ ██║██████╔╝</text>
+    <text x="0" y="110" class="code-text teal-pale" font-weight="bold">     ╚═╝      ╚═╝   ╚═╝     ╚═╝     ╚═╝╚═════╝ </text>
+
+    <!-- Subtitle -->
+    <text x="120" y="132" class="code-text teal-light">[ pdf2md ]</text>
+    <text x="210" y="132" class="code-text gray">v3.1.0 • High-Performance Agentic Document Pipeline</text>
+
+    <!-- Interactive Flow -->
+    <text x="0" y="165" class="code-text">
+      <tspan class="teal-light">[?]</tspan> <tspan class="white-bold">Enter PDF path:</tspan> <tspan class="teal-pale">/home/yahya/Downloads/DevOps_Handbook.pdf</tspan>
+    </text>
+    <text x="0" y="190" class="code-text">
+      <tspan class="teal-light">[?]</tspan> <tspan class="white-bold">Enter destination root:</tspan> <tspan class="gray">~/Documents/ytp24</tspan> <tspan class="teal-bright">[Default]</tspan>
+    </text>
+    <text x="0" y="215" class="code-text">
+      <tspan class="teal-light">[?]</tspan> <tspan class="white-bold">Production Defaults (TOC Split + AI Manifest)?</tspan> <tspan class="teal-pale">(Y/n): Y</tspan>
+    </text>
+
+    <!-- Progress Bar Section -->
+    <text x="0" y="255" class="code-text">
+      <tspan class="teal-light">[*] Processing:</tspan> <tspan class="white-bold">DevOps_Handbook.pdf</tspan>
+    </text>
+    
+    <!-- Dynamic Progress Bar -->
+    <g transform="translate(0, 270)">
+      <text x="0" y="15" class="code-text teal-light">Converting Batch</text>
+      <!-- Progress Bar Track -->
+      <rect x="140" y="2" width="300" height="15" rx="3" fill="#161B22" stroke="#30363D" />
+      <rect x="140" y="2" width="300" height="15" rx="3" fill="url(#barGrad)" />
+      <text x="450" y="15" class="code-text teal-pale" font-weight="bold">100% (4/4)</text>
+      <text x="540" y="15" class="code-text gray">| Complete (42ms)</text>
+    </g>
+
+    <!-- Summary Output -->
+    <text x="0" y="325" class="code-text teal-bright" font-weight="bold">[+] Extraction Complete (Agent-Ready)</text>
+    <text x="15" y="348" class="code-text gray">[-] Destination:  <tspan class="white-bold">~/Documents/ytp24/DevOps_Handbook/</tspan></text>
+    <text x="15" y="368" class="code-text gray">[-] Human TOC:    <tspan class="teal-pale">README.md</tspan> (TOC Index &amp; Statistics)</text>
+    <text x="15" y="388" class="code-text gray">[-] AI Manifest:  <tspan class="teal-bright">AGENTS.md</tspan> (RAG &amp; Autonomous Agent Ingestion Map)</text>
+    <text x="15" y="408" class="code-text gray">[-] Chapters:     <tspan class="white-bold">12 Markdown files</tspan> with YAML frontmatter &amp; navigation breadcrumbs</text>
+    <text x="15" y="428" class="code-text gray">[-] Stats:        <tspan class="white-bold">340 total pages</tspan> | 312 converted | 28 noise/appendix pages excluded</text>
+  </g>
+</svg>

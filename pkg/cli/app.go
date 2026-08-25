@@ -11,11 +11,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/devops/pdf2md/pkg/batch"
-	"github.com/devops/pdf2md/pkg/core"
-	"github.com/devops/pdf2md/pkg/extractor"
-	"github.com/devops/pdf2md/pkg/ui"
-	"github.com/devops/pdf2md/pkg/validator"
+	"github.com/ytp24/ytp24/pkg/batch"
+	"github.com/ytp24/ytp24/pkg/core"
+	"github.com/ytp24/ytp24/pkg/extractor"
+	"github.com/ytp24/ytp24/pkg/ui"
+	"github.com/ytp24/ytp24/pkg/validator"
 )
 
 const AppVersion = "3.1.0"

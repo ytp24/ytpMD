@@ -1,6 +1,6 @@
 package main
 
-import "github.com/devops/pdf2md/pkg/cli"
+import "github.com/ytp24/ytp24/pkg/cli"
 
 func main() {
 	cli.Run()

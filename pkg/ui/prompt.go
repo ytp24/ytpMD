@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/devops/pdf2md/pkg/validator"
+	"github.com/ytp24/ytp24/pkg/validator"
 )
 
 // ANSI Styling & Teal Palette

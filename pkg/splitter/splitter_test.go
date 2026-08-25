@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/devops/pdf2md/pkg/core"
+	"github.com/ytp24/ytp24/pkg/core"
 )
 
 func TestSplitter_SplitIntoChapters(t *testing.T) {

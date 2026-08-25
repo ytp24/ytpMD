@@ -1,14 +1,15 @@
 package transformer
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"unicode"
 
-	"github.com/devops/pdf2md/pkg/core"
+	"github.com/ytp24/ytp24/pkg/core"
 )
 
-// Transformer implements the core.Transformer interface.
+// Transformer implements the core.Transformer interface with agentic optimizations.
 type Transformer struct {
 	config core.Config
 }
@@ -44,18 +45,85 @@ func (t *Transformer) Transform(pagesLines [][]string) string {
 	return strings.TrimSpace(output) + "\n"
 }
 
+// GenerateChapterMarkdown builds an agent-ready markdown document with YAML frontmatter & navigation breadcrumbs.
+func (t *Transformer) GenerateChapterMarkdown(ch core.Chapter, sourcePDF string, totalChapters int) string {
+	var sb strings.Builder
+
+	words := countWords(ch.Content)
+	tokens := estimateTokens(ch.Content)
+
+	// 1. Agentic YAML Frontmatter (for RAG indexers, vector embeddings & LLMs)
+	if t.config.AddYAMLFrontmatter {
+		sb.WriteString("---\n")
+		sb.WriteString(fmt.Sprintf("title: %q\n", ch.Title))
+		sb.WriteString(fmt.Sprintf("chapter: %d\n", ch.Index))
+		sb.WriteString(fmt.Sprintf("total_chapters: %d\n", totalChapters))
+		sb.WriteString(fmt.Sprintf("source_document: %q\n", sourcePDF))
+		sb.WriteString(fmt.Sprintf("start_page: %d\n", ch.StartPage))
+		sb.WriteString(fmt.Sprintf("word_count: %d\n", words))
+		sb.WriteString(fmt.Sprintf("estimated_tokens: %d\n", tokens))
+		sb.WriteString("agent_instructions: \"Cite section headers and use code snippets directly when referencing this document.\"\n")
+		sb.WriteString("---\n\n")
+	}
+
+	// 2. Navigation Breadcrumbs for Sequential AI Multi-file Traversal & Humans
+	sb.WriteString("<div align=\"center\">\n\n")
+	var navItems []string
+	if ch.PrevFilename != "" {
+		navItems = append(navItems, fmt.Sprintf("[« Previous Chapter](./%s)", ch.PrevFilename))
+	}
+	navItems = append(navItems, "[Table of Contents](./README.md)", "[Agent Manifest](./AGENTS.md)")
+	if ch.NextFilename != "" {
+		navItems = append(navItems, fmt.Sprintf("[Next Chapter »](./%s)", ch.NextFilename))
+	}
+	sb.WriteString(strings.Join(navItems, " • ") + "\n\n")
+	sb.WriteString("</div>\n\n---\n\n")
+
+	// 3. Main Content
+	sb.WriteString(ch.Content)
+	sb.WriteString("\n\n---\n\n")
+
+	// 4. Footer Breadcrumbs
+	sb.WriteString("<div align=\"center\">\n\n")
+	sb.WriteString(strings.Join(navItems, " • ") + "\n\n")
+	sb.WriteString("</div>\n")
+
+	return sb.String()
+}
+
 func (t *Transformer) detectCodeBlocks(lines []string) []string {
 	var result []string
 	inCode := false
+	codeLang := "bash"
 
-	codePattern := regexp.MustCompile(`^(\s{4,}|\t|\$\s+|#\s*!/|def\s+\w+|function\s+\w+|import\s+[\w.]+|package\s+\w+|apiVersion:|kind:)`)
+	goPattern := regexp.MustCompile(`^(package\s+\w+|import\s+\(|func\s+\w+|type\s+\w+\s+struct)`)
+	pythonPattern := regexp.MustCompile(`^(def\s+\w+|import\s+[\w.]+|class\s+\w+[:(]|from\s+\w+\s+import)`)
+	yamlPattern := regexp.MustCompile(`^(apiVersion:|kind:|metadata:|spec:|resources:|services:)`)
+	jsonPattern := regexp.MustCompile(`^(\{\s*"|"[\w_-]+":\s*["{\[\d])`)
+	bashPattern := regexp.MustCompile(`^(\s{4,}|\t|\$\s+|#\s*!/|sudo\s+|kubectl\s+|docker\s+|terraform\s+|ansible\s+)`)
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if codePattern.MatchString(line) && trimmed != "" {
+
+		var detectedLang string
+		switch {
+		case goPattern.MatchString(trimmed):
+			detectedLang = "go"
+		case pythonPattern.MatchString(trimmed):
+			detectedLang = "python"
+		case yamlPattern.MatchString(trimmed):
+			detectedLang = "yaml"
+		case jsonPattern.MatchString(trimmed):
+			detectedLang = "json"
+		case bashPattern.MatchString(line):
+			detectedLang = "bash"
+		}
+
+		if detectedLang != "" && trimmed != "" {
 			if !inCode {
 				inCode = true
-				result = append(result, "```bash")
+				codeLang = detectedLang
+				result = append(result, "```"+codeLang)
 			}
 			result = append(result, strings.TrimRight(line, " \t\r\n"))
 		} else {
@@ -221,6 +289,15 @@ func (t *Transformer) joinLines(lines []string) string {
 		}
 	}
 	return sb.String()
+}
+
+func countWords(s string) int {
+	return len(strings.Fields(s))
+}
+
+func estimateTokens(s string) int {
+	// Standard heuristic: 1 token ≈ 4 characters or ~0.75 words
+	return int(float64(len(s)) / 3.8)
 }
 
 func isAllUpper(s string) bool {

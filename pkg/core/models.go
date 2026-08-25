@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Config defines the extraction, transformation, and batch settings.
+// Config defines extraction, transformation, agentic metadata, and batch settings.
 type Config struct {
 	StartPage             int
 	EndPage               int
@@ -19,11 +19,13 @@ type Config struct {
 	DetectCodeBlocks      bool
 	SplitByChapter        bool
 	GenerateTOCIndex      bool
+	GenerateAgentManifest bool
+	AddYAMLFrontmatter    bool
 	Concurrency           int
 	StopPatterns          []string
 }
 
-// DefaultConfig returns optimal, production-grade defaults.
+// DefaultConfig returns optimal, agentic-ready production defaults.
 func DefaultConfig() Config {
 	return Config{
 		StartPage:             1,
@@ -38,6 +40,8 @@ func DefaultConfig() Config {
 		DetectCodeBlocks:      true,
 		SplitByChapter:        true,
 		GenerateTOCIndex:      true,
+		GenerateAgentManifest: true,
+		AddYAMLFrontmatter:    true,
 		Concurrency:           4,
 		StopPatterns: []string{
 			`(?i)^appendix\s+[a-z0-9]`,
@@ -54,13 +58,17 @@ func DefaultConfig() Config {
 
 // Chapter represents an individual section or chapter extracted from a document.
 type Chapter struct {
-	Index     int
-	Title     string
-	Slug      string
-	Filename  string
-	StartPage int
-	Lines     []string
-	Content   string
+	Index         int
+	Title         string
+	Slug          string
+	Filename      string
+	StartPage     int
+	WordCount     int
+	TokenEstimate int
+	PrevFilename  string
+	NextFilename  string
+	Lines         []string
+	Content       string
 }
 
 // PDFPage represents an individual page extracted from the PDF.
@@ -78,6 +86,8 @@ type ProcessedDocument struct {
 	TotalPages      int
 	ProcessedPages  int
 	SkippedPages    int
+	WordCount       int
+	TokenEstimate   int
 	MarkdownContent string
 }
 
@@ -86,16 +96,19 @@ func (d *ProcessedDocument) GetFilename() string {
 	return filepath.Base(d.SourcePath)
 }
 
-// SplitResult represents the chapter-based directory output.
+// SplitResult represents the chapter-based directory output with agent manifests.
 type SplitResult struct {
 	SourcePDF       string
 	PDFName         string
 	TargetDirectory string
 	TOCContent      string
+	AgentManifest   string
 	Chapters        []Chapter
 	TotalPages      int
 	ProcessedPages  int
 	SkippedPages    int
+	TotalWords      int
+	TotalTokens     int
 }
 
 // FileResult holds individual file execution status in a concurrent batch.
@@ -106,6 +119,7 @@ type FileResult struct {
 	Error         error
 	ChaptersCount int
 	TotalPages    int
+	TotalTokens   int
 }
 
 // BatchResult holds aggregated metrics for multi-document batch runs.
