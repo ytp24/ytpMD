@@ -7,15 +7,14 @@ import (
 	"sync"
 )
 
-// ProgressBar manages a thread-safe, animated terminal progress bar
+// ProgressBar manages a thread-safe, animated in-place terminal progress bar
 // with teal shades shifting from dark to bright near completion.
 type ProgressBar struct {
-	mu           sync.Mutex
-	total        int
-	current      int
-	title        string
-	lastRendered string
-	width        int
+	mu      sync.Mutex
+	total   int
+	current int
+	title   string
+	width   int
 }
 
 // NewProgressBar creates a new progress bar instance.
@@ -23,11 +22,11 @@ func NewProgressBar(total int, title string) *ProgressBar {
 	return &ProgressBar{
 		total: total,
 		title: title,
-		width: 30,
+		width: 22, // Compact width to guarantee single-line rendering without wrap
 	}
 }
 
-// Increment advances the progress bar by 1 and updates the terminal.
+// Increment advances the progress bar by 1 and updates the terminal in-place.
 func (p *ProgressBar) Increment(currentFile string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -51,7 +50,7 @@ func (p *ProgressBar) Set(current int, currentFile string) {
 	p.render(currentFile)
 }
 
-// Finish completes the progress bar and prints a clean newline.
+// Finish completes the progress bar and prints a single clean newline.
 func (p *ProgressBar) Finish() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -79,27 +78,21 @@ func (p *ProgressBar) render(statusText string) {
 	barFilled := strings.Repeat("█", filled)
 	barEmpty := strings.Repeat("░", empty)
 
-	// Truncate long filenames to prevent wrapping
-	if len(statusText) > 35 {
-		statusText = statusText[:32] + "..."
+	// Clean & strictly truncate filename to max 24 chars to avoid terminal wrapping
+	cleanStatus := strings.TrimSpace(statusText)
+	if len(cleanStatus) > 24 {
+		cleanStatus = cleanStatus[:21] + "..."
 	}
 
-	output := fmt.Sprintf("\r%s%s %s[%s%s%s%s] %3.0f%% (%d/%d)%s %s| %s%s",
+	// \r\033[2K returns to column 0 AND clears the entire current line
+	fmt.Printf("\r\033[2K%s%s %s[%s%s%s%s] %3.0f%% (%d/%d)%s %s| %s%s",
 		TealLight, p.title,
 		color,
 		color, barFilled, ColorGray, barEmpty,
 		percent*100, p.current, p.total,
 		Reset,
-		ColorGray, statusText, Reset)
+		ColorGray, cleanStatus, Reset)
 
-	// Clean trailing characters from previous renders
-	pad := len(p.lastRendered) - len(output)
-	if pad > 0 {
-		output += strings.Repeat(" ", pad)
-	}
-
-	fmt.Print(output)
-	p.lastRendered = output
 	_ = os.Stdout.Sync()
 }
 
