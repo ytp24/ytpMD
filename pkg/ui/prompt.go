@@ -52,7 +52,6 @@ func PromptPDFFile(reader *bufio.Reader) (string, error) {
 		}
 
 		trimmed := strings.TrimSpace(input)
-		// Strip wrapping quotes if user dragged-and-dropped file into terminal
 		trimmed = strings.Trim(trimmed, "\"'")
 
 		if trimmed == "" {
@@ -153,7 +152,7 @@ func PromptBool(reader *bufio.Reader, label string, defaultVal bool) bool {
 	}
 }
 
-// RunInteractiveWizard executes the full question-answer wizard.
+// RunInteractiveWizard executes the full question-answer wizard with smart defaults.
 func RunInteractiveWizard(version string) (*InteractiveOptions, error) {
 	PrintBanner(version)
 
@@ -172,18 +171,33 @@ func RunInteractiveWizard(version string) (*InteractiveOptions, error) {
 		return nil, err
 	}
 
-	// 3. Ask for Front Matter skip pages (covers, copyright, TOC)
+	// 3. Ask whether to apply standard production defaults:
+	// - Extract Table of Contents chapters into named folder
+	// - Automatically cutoff at Appendix / Index / Bibliography
+	// - Exclude images and running headers/footers
+	useDefaults := PromptBool(reader, "Use standard production defaults (TOC chapters -> Appendix cutoff)?", true)
+
+	if useDefaults {
+		fmt.Println()
+		fmt.Printf("%s%s[+] Applying production defaults (TOC chapters extracted, Appendix/Index excluded). Starting...%s\n\n", ColorGreen, ColorBold, ColorReset)
+		return &InteractiveOptions{
+			PDFPath:         pdfPath,
+			DestinationDir:  destDir,
+			SkipFrontMatter: 0,
+			ExcludeAppendix: true,
+			SplitByChapters: true,
+			StartPage:       1,
+			EndPage:         0,
+		}, nil
+	}
+
+	// Advanced Custom Settings:
 	fmt.Println()
-	fmt.Printf("%s--- Extraction Settings ---%s\n", ColorBlue, ColorReset)
+	fmt.Printf("%s--- Custom Extraction Settings ---%s\n", ColorBlue, ColorReset)
 	skipFront := PromptInt(reader, "Skip initial front-matter pages (covers, copyright, dedication)", 0, 0)
-
-	// 4. Ask about Appendix / Index / Bibliography exclusion
 	excludeAppendix := PromptBool(reader, "Automatically exclude Appendix, Index, & Bibliography sections?", true)
-
-	// 5. Ask about chapter splitting
 	splitChapters := PromptBool(reader, "Split into individual chapter files inside a named folder?", true)
 
-	// 6. Optional Advanced Page range
 	customRange := PromptBool(reader, "Set custom start/end page range?", false)
 	startPage := 1
 	endPage := 0
@@ -193,7 +207,7 @@ func RunInteractiveWizard(version string) (*InteractiveOptions, error) {
 	}
 
 	fmt.Println()
-	fmt.Printf("%s%s[+] All settings configured. Starting extraction...%s\n\n", ColorGreen, ColorBold, ColorReset)
+	fmt.Printf("%s%s[+] All custom settings configured. Starting extraction...%s\n\n", ColorGreen, ColorBold, ColorReset)
 
 	return &InteractiveOptions{
 		PDFPath:         pdfPath,
